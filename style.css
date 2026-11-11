@@ -111,7 +111,6 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 }
 .hero-stats-mini { display: flex; gap: 10px; font-size: 12px; font-weight: bold; color: #ccc; }
 
-/* Панель валюты */
 .top-center {
     display: flex;
     gap: 30px;
@@ -478,28 +477,7 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 .tower-boss-row span { color: var(--muted); }
 .tower-fight-btn { margin-top: auto; font-size: 18px; padding: 14px; }
 
-/* ============ БОЙ ============ */
-.battle-arena {
-    flex: 1;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    background: url('images/bg_battle.png') center/cover, radial-gradient(circle at center, #2a1020 0%, #0a0505 100%);
-    margin: 0 20px;
-    border: 2px solid var(--panel-border);
-    border-radius: 12px;
-    position: relative;
-}
-.fighter { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.fighter-name { font-size: 24px; font-weight: bold; color: var(--gold); text-shadow: 0 2px 4px #000; }
-.fighter-img { width: 200px; height: 200px; object-fit: contain; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.5)); }
-.vs { font-size: 48px; font-weight: bold; color: #fff; text-shadow: 0 0 10px var(--accent); }
-.boss-img-wrapper { position: relative; }
-.battle-controls {
-    display: flex; gap: 10px; justify-content: center;
-    padding: 15px; background: rgba(0,0,0,0.7);
-    margin: 10px 20px; border-radius: 12px;
-}
+/* ============ ОБЩИЕ КНОПКИ ДЕЙСТВИЙ (для башни/прочего) ============ */
 .action-btn {
     padding: 12px 24px;
     background: linear-gradient(to bottom, #555, #222);
@@ -511,8 +489,6 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 }
 .action-btn:hover { border-color: var(--gold); transform: translateY(-2px); }
 .action-btn.main-action { background: linear-gradient(to bottom, #8b0000, #400000); border-color: var(--accent); }
-.action-btn.auto { background: linear-gradient(to bottom, #1b5e20, #0a2e0c); border-color: var(--hp); }
-.action-btn.speed { background: linear-gradient(to bottom, #0d47a1, #041e4d); border-color: var(--rare); }
 
 @keyframes hit {
     0%,100% { transform: translateX(0); }
@@ -531,13 +507,14 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
     text-shadow: 0 0 10px #000, 0 0 5px #ff0000;
     animation: floatUp .8s forwards;
     pointer-events: none;
+    z-index: 5;
 }
 .damage-popup.crit { color: var(--gold); font-size: 48px; }
 
 .log {
-    height: 120px; overflow-y: auto;
+    height: 100px; overflow-y: auto;
     background: rgba(0,0,0,0.8);
-    margin: 0 20px 20px; padding: 10px;
+    margin: 0 20px 10px; padding: 10px;
     border: 1px solid var(--panel-border);
     border-radius: 8px;
     font-size: 13px; color: #ccc;
@@ -547,7 +524,462 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 .log .win { color: var(--hp); }
 .log .lose { color: var(--accent); }
 
-/* ============ МОДАЛКИ (общие) ============ */
+/* ============================================================
+   НОВЫЙ БОЕВОЙ ЭКРАН
+   ============================================================ */
+#battle-screen {
+    padding: 0;
+    overflow: hidden;
+}
+
+/* --- Верхняя панель боя --- */
+.battle-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 10px 60px 10px 20px;
+    background: rgba(10,15,20,0.85);
+    border-bottom: 2px solid var(--panel-border);
+    position: relative;
+    z-index: 10;
+}
+
+.bt-hero, .bt-boss { flex: 1; max-width: 320px; }
+.bt-boss { text-align: right; }
+
+.bt-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--gold);
+    text-shadow: 0 2px 4px #000;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+}
+
+.bt-bar {
+    height: 18px;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid var(--panel-border);
+    border-radius: 9px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.bt-fill {
+    height: 100%;
+    width: 100%;
+    transition: width .3s;
+    border-radius: 9px 0 0 9px;
+}
+.bt-hp .bt-fill { background: linear-gradient(90deg, #8b0000, #e94560, #ff5c78); }
+.bt-mana .bt-fill { background: linear-gradient(90deg, #0d47a1, #2196f3, #64b5f6); }
+.bt-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 11px;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px #000;
+    color: #fff;
+}
+
+.bt-timer-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: rgba(0,0,0,0.6);
+    border: 2px solid var(--gold);
+    border-radius: 12px;
+    padding: 6px 20px;
+    box-shadow: 0 0 15px rgba(245,197,24,0.3);
+}
+.bt-timer-icon { font-size: 18px; }
+.bt-timer {
+    font-size: 22px;
+    font-weight: bold;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(245,197,24,0.6);
+}
+
+.bt-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: rgba(180,30,50,0.9);
+    border: 2px solid #fff;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: transform .15s;
+}
+.bt-close:hover { transform: scale(1.1); background: #e94560; }
+
+/* --- Арена --- */
+.battle-stage {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    padding: 10px 40px;
+    min-height: 0;
+    background: url('images/bg_battle.png') center/cover no-repeat,
+                radial-gradient(circle at center, #2a1020 0%, #0a0505 100%);
+}
+
+.bs-hero, .bs-boss {
+    position: relative;
+    width: 38%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    height: 100%;
+    max-height: 60vh;
+}
+
+.bs-hero-img, .bs-boss-img {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 15px 25px rgba(0,0,0,0.9));
+}
+
+.bs-hero-img.hit,
+.bs-boss-img.hit {
+    animation: hit .2s;
+}
+
+/* Левая панель быстрых слотов */
+.quick-slots {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    z-index: 6;
+}
+
+.quick-slot {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #2a3844, #10171d);
+    border: 2px solid var(--panel-border);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.6), inset 0 0 10px rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    transition: transform .15s;
+}
+.quick-slot:hover { transform: scale(1.08); border-color: var(--gold); }
+.quick-slot .qs-icon {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 26px;
+    background-size: cover;
+    background-position: center;
+}
+.quick-slot .qs-count {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    background: #000;
+    color: var(--gold);
+    font-size: 12px;
+    font-weight: bold;
+    padding: 1px 6px;
+    border-radius: 10px;
+    border: 2px solid var(--gold);
+    min-width: 20px;
+    text-align: center;
+}
+
+/* --- Нижняя панель скиллов --- */
+.battle-skillbar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: 14px 20px 10px;
+    background: linear-gradient(to top, rgba(10,15,20,0.95), rgba(20,28,34,0.85));
+    border-top: 2px solid var(--panel-border);
+    position: relative;
+    z-index: 10;
+}
+
+.skill-row {
+    display: flex;
+    gap: 18px;
+}
+
+.skill-btn {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #3a4b55, #0a1014);
+    border: 3px solid var(--panel-border);
+    box-shadow: 0 5px 12px rgba(0,0,0,0.6), inset 0 0 10px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    transition: transform .12s, border-color .12s;
+    color: #fff;
+    overflow: visible;
+}
+.skill-btn:hover { transform: translateY(-4px); border-color: var(--gold); }
+.skill-btn:active { transform: translateY(0); }
+.skill-btn.on-cooldown { opacity: 0.55; filter: grayscale(0.6); cursor: not-allowed; }
+
+.skill-icon { font-size: 30px; line-height: 1; }
+
+.skill-label {
+    font-size: 9px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #ccc;
+    margin-top: 2px;
+    text-shadow: 1px 1px 2px #000;
+    letter-spacing: .5px;
+}
+
+/* Синяя полоска кулдауна/маны на кнопке */
+.skill-cd {
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 5px;
+    border-radius: 3px;
+    background: rgba(33, 150, 243, 0.15);
+    overflow: hidden;
+}
+.skill-cd::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #0d47a1, #2196f3);
+    border-radius: 3px;
+    transition: width .2s linear;
+}
+.skill-btn.on-cooldown .skill-cd::after { width: 100%; background: #444; }
+
+.skill-potion .skill-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    border: 2px solid #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    z-index: 3;
+}
+
+.ok-btn {
+    padding: 14px 30px;
+    background: linear-gradient(to bottom, #2e7d32, #1b5e20);
+    border: 2px solid var(--hp);
+    border-radius: 12px;
+    color: #fff;
+    font-weight: bold;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(76,175,80,0.4);
+    transition: all .15s;
+}
+.ok-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(76,175,80,0.6); }
+.ok-btn:active { transform: translateY(0); }
+
+/* ============================================================
+   МОДАЛКА ПОБЕДЫ
+   ============================================================ */
+#victory-modal {
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(6px);
+}
+
+.victory-content {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 15px;
+    max-width: 1100px;
+    width: 95vw;
+    max-height: 90vh;
+}
+
+.victory-side {
+    flex: 1;
+    background: linear-gradient(135deg, #141c22, #0a1014);
+    border: 2px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 16px;
+    overflow-y: auto;
+    min-width: 0;
+}
+.victory-side h3 {
+    color: var(--gold);
+    text-align: center;
+    font-size: 14px;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+.rating-list, .trophy-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.rating-list li, .trophy-list li {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+.rating-list li b, .trophy-list li b { color: var(--gold); }
+
+.victory-center {
+    flex: 1.4;
+    background: linear-gradient(135deg, #1a2630, #0a1014);
+    border: 3px solid var(--gold);
+    border-radius: 18px;
+    padding: 25px 30px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(245,197,24,0.35);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 300px;
+}
+.victory-title {
+    font-size: 26px;
+    color: var(--gold);
+    text-shadow: 0 0 15px rgba(245,197,24,0.7), 0 2px 4px #000;
+    letter-spacing: 2px;
+    margin: 0;
+}
+.victory-repeat {
+    padding: 8px 24px;
+    background: linear-gradient(to bottom, #f5a623, #c46a00);
+    border: 2px solid #fff;
+    border-radius: 10px;
+    color: #fff;
+    font-weight: bold;
+    font-size: 14px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+    transition: transform .12s;
+}
+.victory-repeat:hover { transform: translateY(-2px); }
+
+.victory-trophies {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+.vt-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0,0,0,0.4);
+    border: 2px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    min-width: 80px;
+}
+.vt-item .vt-icon {
+    width: 44px; height: 44px;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 26px;
+}
+.vt-item .vt-icon img { width: 100%; height: 100%; object-fit: contain; }
+.vt-item .vt-amount { color: var(--gold); font-weight: bold; font-size: 16px; }
+.vt-item .vt-label { color: var(--muted); font-size: 11px; }
+
+.victory-dmg-label {
+    color: var(--muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 6px;
+}
+.victory-dmg-value {
+    font-size: 46px;
+    font-weight: bold;
+    color: #ff5c78;
+    text-shadow: 0 0 15px rgba(233,69,96,0.7), 0 2px 4px #000;
+    line-height: 1;
+}
+
+.victory-ok {
+    margin-top: 8px;
+    padding: 14px 36px;
+    background: linear-gradient(to bottom, #2e7d32, #1b5e20);
+    border: 2px solid var(--hp);
+    border-radius: 12px;
+    color: #fff;
+    font-weight: bold;
+    font-size: 17px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(76,175,80,0.5);
+    transition: all .15s;
+}
+.victory-ok:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(76,175,80,0.7); }
+
+/* ============================================================
+   ОСТАЛЬНЫЕ МОДАЛКИ (без изменений)
+   ============================================================ */
 .modal {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.75);
@@ -621,7 +1053,6 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 .profile-tab-content { display: none; }
 .profile-tab-content.active { display: block; }
 
-/* Таланты */
 .tab-header { text-align: center; color: #d32f2f; border-bottom: 2px solid #d5c4a1; padding-bottom: 10px; margin-bottom: 20px; }
 .center-talent { display: flex; justify-content: center; margin-bottom: 20px; }
 .talents-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -635,14 +1066,12 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 .btn-upgrade:hover { background: #7cb342; }
 .talent-footer { display: flex; justify-content: center; gap: 20px; margin-top: 20px; padding-top: 10px; border-top: 2px solid #d5c4a1; font-size: 18px; font-weight: bold; color: #5a3a1b; }
 
-/* Аватар */
 .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
 .avatar-item { border: 3px solid transparent; border-radius: 8px; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
 .avatar-item:hover { transform: scale(1.05); }
 .avatar-item.active-avatar { border-color: #d32f2f; }
 .avatar-item img { width: 100%; display: block; }
 
-/* Достижения */
 .ach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .ach-card { background: rgba(255,255,255,0.4); border: 2px solid #d5c4a1; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; }
 .ach-card h3 { color: #5a3a1b; margin: 0 0 4px; font-size: 14px; }
@@ -650,7 +1079,6 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 .ach-card.unlocked { border-color: #8bc34a; background: rgba(139,195,74,0.2); }
 .ach-reward { color: #d32f2f; font-weight: bold; }
 
-/* Питомцы */
 .pet-showcase { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .pet-showcase h3 { color: #d32f2f; font-size: 20px; margin: 0; }
 .pet-stars { color: #f5c518; font-size: 24px; }
@@ -752,236 +1180,19 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
     .tower-layout { grid-template-columns: 1fr; }
     .bm-header { flex-direction: column; text-align: center; }
     .bm-title-block h2 { text-align: center; }
-}
 
-/* ============ УНИВЕРСАЛЬНАЯ МОДАЛКА И КНОПКИ ============ */
-.gold-btn {
-    background: linear-gradient(to bottom, #fceb9b, #dca121);
-    border: 2px solid #8c6012;
-    border-radius: 8px;
-    color: #3a1c00;
-    font-weight: bold;
-    font-size: 18px;
-    padding: 12px 24px;
-    text-transform: uppercase;
-    cursor: pointer;
-    text-shadow: 0 1px 1px rgba(255,255,255,0.5);
-    box-shadow: 0 4px 0 #8c6012, 0 6px 10px rgba(0,0,0,0.5);
-    transition: all 0.1s;
+    .battle-topbar { flex-wrap: wrap; padding: 8px 50px 8px 10px; gap: 8px; }
+    .bt-hero, .bt-boss { max-width: 100%; flex: 1 1 40%; }
+    .bt-timer-wrap { order: -1; flex-basis: 100%; flex-direction: row; justify-content: center; padding: 4px 14px; }
+    .bt-timer { font-size: 18px; }
+    .bs-hero, .bs-boss { width: 42%; }
+    .quick-slots { left: 5px; gap: 8px; }
+    .quick-slot { width: 44px; height: 44px; }
+    .quick-slot .qs-icon { font-size: 20px; }
+    .skill-btn { width: 60px; height: 60px; }
+    .skill-icon { font-size: 22px; }
+    .skill-label { font-size: 8px; }
+    .ok-btn { padding: 10px 16px; font-size: 14px; }
+    .victory-content { flex-direction: column; overflow-y: auto; }
+    .victory-side { max-height: 140px; }
 }
-.gold-btn:hover { filter: brightness(1.1); }
-.gold-btn:active { transform: translateY(4px); box-shadow: 0 0 0 #8c6012, 0 2px 5px rgba(0,0,0,0.5); }
-
-/* ============ НОВЫЙ ЭКРАН БОЯ ============ */
-#battle-screen {
-    background: url('images/bg_battle.png') center/cover no-repeat;
-    padding: 0;
-    display: none;
-    flex-direction: column;
-}
-#battle-screen.active { display: flex; }
-
-.battle-top-hud {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 20px 30px;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
-    position: relative;
-}
-.fighter-hud {
-    width: 30%;
-    text-align: center;
-}
-.fighter-hud .fighter-name {
-    font-size: 18px;
-    margin-bottom: 5px;
-    text-shadow: 0 2px 4px #000;
-}
-.fighter-hud.left .fighter-name { color: #6ab0ff; }
-.fighter-hud.right .fighter-name { color: #ff6a6a; }
-
-.battle-timer {
-    font-size: 32px;
-    color: var(--gold);
-    font-weight: bold;
-    text-shadow: 0 0 10px #000;
-    margin-top: 10px;
-}
-.flee-btn {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
-    background: #d32f2f;
-    color: #fff;
-    border: 2px solid #ffeb3b;
-    border-radius: 6px;
-    font-size: 20px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-}
-
-.battle-arena-new {
-    flex: 1;
-    display: flex;
-    justify-content: space-around;
-    align-items: flex-end;
-    padding-bottom: 20px;
-    position: relative;
-}
-.battle-arena-new .fighter-img {
-    max-height: 45vh;
-    object-fit: contain;
-    filter: drop-shadow(0 15px 25px rgba(0,0,0,0.8));
-    transition: transform 0.1s;
-}
-.battle-arena-new .fighter-img.hit {
-    animation: hit .2s;
-    filter: drop-shadow(0 0 20px red);
-}
-
-.battle-left-icons {
-    position: absolute;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-.icon-stack {
-    position: relative;
-    width: 60px; height: 60px;
-    background: rgba(0,0,0,0.6);
-    border: 2px solid var(--gold);
-    border-radius: 50%;
-    display: flex; justify-content: center; align-items: center;
-    font-size: 28px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.8);
-}
-.b-count {
-    position: absolute;
-    bottom: -5px; right: -5px;
-    background: #000; color: #fff;
-    padding: 2px 6px; border-radius: 10px;
-    font-size: 14px; font-weight: bold;
-    border: 1px solid var(--gold);
-}
-
-/* Круглые кнопки снизу */
-.battle-bottom-actions {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    padding: 20px;
-    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
-}
-.circle-btn {
-    width: 70px; height: 70px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 30% 30%, #3a4b55, #0a1014);
-    border: 3px solid var(--panel-border);
-    color: #fff;
-    font-size: 32px;
-    cursor: pointer;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.7), inset 0 0 10px rgba(255,255,255,0.2);
-    transition: transform 0.1s, border-color 0.2s;
-    display: flex; justify-content: center; align-items: center;
-}
-.circle-btn:hover {
-    border-color: var(--gold);
-    transform: translateY(-3px);
-}
-#btn-action-attack { border-color: #ff6a6a; }
-#btn-action-heavy { border-color: #ffaa00; }
-#btn-action-defend { border-color: #6ab0ff; }
-#btn-action-potion { border-color: #00ff88; }
-
-/* ============ ЭКРАН ПОБЕДЫ ============ */
-#victory-screen {
-    background: rgba(0,0,0,0.85);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 50;
-}
-#victory-screen.active { display: flex; }
-.victory-overlay {
-    display: flex;
-    width: 1000px;
-    max-width: 95vw;
-    height: 600px;
-    gap: 20px;
-    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-@keyframes popIn {
-    0% { transform: scale(0.8); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
-.victory-panel {
-    background: #e8dac0;
-    border: 4px solid #c7a86b;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-    color: #5a3a1b;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-}
-.side-panel {
-    flex: 1;
-    max-width: 250px;
-}
-.center-panel {
-    flex: 2;
-    align-items: center;
-    text-align: center;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-
-.victory-panel h3 {
-    text-align: center;
-    font-size: 16px;
-    border-bottom: 2px solid #c7a86b;
-    padding-bottom: 10px;
-    margin-bottom: 15px;
-    color: #8c6012;
-}
-.leaderboard-item {
-    display: flex; justify-content: space-between;
-    align-items: center;
-    padding: 10px; background: rgba(255,255,255,0.5);
-    border-radius: 6px; font-weight: bold; font-size: 14px;
-}
-.mini-avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #8c6012; }
-
-.victory-title {
-    color: #ffcc00;
-    font-size: 48px;
-    text-shadow: 0 0 15px #ffaa00, 0 2px 4px #000;
-    margin: 0 0 20px 0;
-    line-height: 1.1;
-    font-style: italic;
-}
-.victory-boss-img { flex: 1; display: flex; align-items: center; justify-content: center; }
-.victory-boss-img img { max-height: 300px; filter: drop-shadow(0 10px 20px #000); }
-.victory-stats { font-size: 20px; font-weight: bold; color: #fff; text-shadow: 0 2px 4px #000; margin: 20px 0; }
-.victory-stats span { color: #ffcc00; font-size: 32px; }
-
-.trophy-grid {
-    display: flex; flex-direction: column; gap: 10px;
-}
-.trophy-item {
-    background: rgba(0,0,0,0.1); padding: 15px; border-radius: 8px;
-    display: flex; align-items: center; gap: 15px;
-    font-size: 18px; font-weight: bold; color: #333;
-    border: 1px solid #c7a86b;
-}
-.trophy-item span { font-size: 28px; }

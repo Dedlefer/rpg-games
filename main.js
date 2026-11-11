@@ -5,24 +5,10 @@ import * as UI from './js/ui.js';
 import { renderInventory, equipItem, unequipItem, sellItem } from './js/inventory.js';
 import { openBossModal, closeBossModal, startBossFight } from './js/boss-modal.js';
 import { renderTower, startTowerBattle } from './js/tower.js';
-import { setupBattleUI, showVictoryScreen } from './js/battle-ui.js'; // Импорт UI боя
 import { playSound } from './js/utils.js';
 
 window.UI = UI;
-
-// Универсальная функция показа модалки (замена alert)
-window.showModal = (title, text, onOk, isDanger = false) => {
-    const modal = document.getElementById('custom-modal');
-    document.getElementById('cm-title').textContent = title;
-    document.getElementById('cm-title').style.color = isDanger ? 'var(--accent)' : 'var(--gold)';
-    document.getElementById('cm-text').textContent = text;
-    modal.classList.remove('hidden');
-    
-    document.getElementById('cm-ok').onclick = () => {
-        modal.classList.add('hidden');
-        if (onOk) onOk();
-    };
-};
+window.Battle = Battle;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadGame();
@@ -45,13 +31,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.upgradeTalent = (id) => UI.upgradeTalent(id);
     window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
 
-    // --- Магазин (с кастомными модалками) ---
+    // --- Магазин ---
     window.buyItem = (id) => {
         const item = items.find(i => i.id === id);
         if (!item) return;
         const price = item.price;
-        if (state.hero.silver < (price.silver || 0)) return window.showModal('ОШИБКА', 'Недостаточно серебра!', null, true);
-        if (state.hero.gold < (price.gold || 0)) return window.showModal('ОШИБКА', 'Недостаточно золота!', null, true);
+        if (state.hero.silver < (price.silver || 0)) return alert('Мало серебра!');
+        if (state.hero.gold < (price.gold || 0)) return alert('Мало золота!');
         state.hero.silver -= price.silver || 0;
         state.hero.gold -= price.gold || 0;
         state.hero.inventory.push(item.id);
@@ -65,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.hero.consumables[key] = (state.hero.consumables[key] || 0) + 1;
             saveGame(); UI.updateHUD(); UI.renderShop();
             playSound('click');
-        } else window.showModal('ОШИБКА', 'Недостаточно серебра!', null, true);
+        } else alert('Мало серебра!');
     };
 
     // --- Инвентарь ---
@@ -77,15 +63,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.hero.keys < 3) return;
         state.hero.keys -= 3;
         const pool = items.filter(i => !state.hero.inventory.includes(i.id) && !state.hero.equipment.includes(i.id));
-        if (pool.length === 0) {
-            state.hero.keys += 3;
-            return window.showModal('СУНДУК', 'Вы уже собрали все предметы!');
-        }
+        if (pool.length === 0) { alert('Все предметы собраны!'); state.hero.keys += 3; return; }
         const reward = pool[Math.floor(Math.random() * pool.length)];
         state.hero.inventory.push(reward.id);
+        alert(`Из сундука выпал: ${reward.name}!`);
         saveGame(); UI.updateHUD(); renderInventory();
         playSound('crit');
-        window.showModal('СУНДУК ОТКРЫТ', `Вы получили: ${reward.name}!`);
     };
 
     // --- Окно босса ---
@@ -93,55 +76,189 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeBossModal = closeBossModal;
     window.startBossFight = startBossFight;
 
-    // --- Бой ---
-    window.setupBattleUI = setupBattleUI;
+    // ============================================================
+    // УНИВЕРСАЛЬНЫЙ SETUP БОЯ (новый интерфейс)
+    // ============================================================
+    window.setupBattleUI = (boss, overrides = {}) => {
+        // Заполняем новый боевой интерфейс
+        UI.renderBattleUI(boss, Battle.battleState.isTower);
 
+        window.battleUI = {
+            onHit: (dmg, isCrit, label) => {
+                Battle.battleState.totalDamage += 0; // уже учтено в doAttack
+                UI.updateBattleHP();
+                document.getElementById('battle-log').innerHTML +=
+                    `<div>${label}: ${dmg.toFixed(0)} ${isCrit ? '<span class="crit">(КРИТ!)</span>' : ''}</div>`;
+
+                // Попап урона над боссом
+                spawnDamagePopup('bt-damage-popups-boss', dmg, isCrit);
+
+                // Анимация "hit" на боссе
+                const bossImg = document.getElementById('bt-boss-img');
+                bossImg.classList.remove('hit');
+                void bossImg.offsetWidth;
+                bossImg.classList.add('hit');
+
+                playSound(isCrit ? 'crit' : 'hit');
+                scrollLog();
+            },
+            onBossHit: (dmg) => {
+                UI.updateBattleHP();
+                document.getElementById('battle-log').innerHTML +=
+                    `<div><span class="lose">Босс: ${dmg.toFixed(0)}</span></div>`;
+
+                spawnDamagePopup('bt-damage-popups-hero', dmg, false);
+
+                const heroImg = document.getElementById('bt-hero-img');
+                heroImg.classList.remove('hit');
+                void heroImg.offsetWidth;
+                heroImg.classList.add('hit');
+
+                playSound('hit');
+                scrollLog();
+            },
+            onLog: (msg) => {
+                document.getElementById('battle-log').innerHTML += `<div>${msg}</div>`;
+                scrollLog();
+            },
+            onWin: overrides.onWin || (() => {
+                Battle.stopBattleTimer();
+
+                // Награды
+                const goldReward = boss.reward.gold || 0;
+                const silverReward = boss.reward.silver || 0;
+                const xpReward = boss.reward.xp || 0;
+
+                state.hero.silver += silverReward;
+                state.hero.gold += goldReward;
+                gainXP(xpReward);
+                if (!state.defeatedBosses.includes(boss.id)) state.defeatedBosses.push(boss.id);
+                saveGame(); UI.updateHUD();
+
+                // Показываем модалку победы
+                UI.showVictoryModal({
+                    gold: goldReward,
+                    stars: xpReward > 0 ? Math.round(xpReward * 0.99) : 1980,
+                    items: []
+                });
+
+                playSound('crit');
+            }),
+            onLose: overrides.onLose || (() => {
+                Battle.clearBattleTimers();
+                playSound('lose');
+                document.getElementById('battle-log').innerHTML +=
+                    '<div class="lose">ПОРАЖЕНИЕ...</div>';
+                setTimeout(() => {
+                    alert('Поражение...');
+                    if (Battle.battleState.isTower) {
+                        UI.goToScreen('tower-screen');
+                        renderTower();
+                    } else {
+                        UI.goToScreen('main-screen');
+                    }
+                }, 600);
+            })
+        };
+    };
+
+    function scrollLog() {
+        const log = document.getElementById('battle-log');
+        if (log) log.scrollTop = log.scrollHeight;
+    }
+
+    function spawnDamagePopup(containerId, dmg, isCrit) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const p = document.createElement('div');
+        p.className = 'damage-popup' + (isCrit ? ' crit' : '');
+        p.textContent = (isCrit ? 'КРИТ ' : '') + '-' + Math.round(dmg);
+        p.style.left = (40 + Math.random() * 20) + '%';
+        container.appendChild(p);
+        setTimeout(() => p.remove(), 900);
+    }
+
+    // ============================================================
+    // СТАРТ БОЯ С БОССОМ КАРТЫ
+    // ============================================================
     window.startFight = (index) => {
         const boss = bosses[index];
         if (!boss) return;
         if (state.hero.level < boss.levelRequired) return;
         Battle.beginBattle(boss, false);
         UI.goToScreen('battle-screen');
-        setupBattleUI(boss);
+        window.setupBattleUI(boss);
     };
 
+    // ============================================================
+    // ДЕЙСТВИЯ ИГРОКА (новые кнопки)
+    // ============================================================
     window.playerAction = (action) => {
         if (!Battle.battleState.active) return;
-        
-        const btn = document.getElementById(`btn-action-${action}`);
-        if (btn) {
-            btn.style.transform = 'scale(0.9)';
-            setTimeout(() => btn.style.transform = '', 100);
+
+        // Проверка кулдауна
+        if (['attack', 'heavy', 'defend', 'potion'].includes(action)) {
+            if (!Battle.isSkillReady(action)) {
+                window.battleUI.onLog('<span class="lose">Скилл ещё не готов!</span>');
+                return;
+            }
         }
 
-        if (action === 'attack') Battle.doAttack(1, 'АТАКА', window.battleUI);
-        if (action === 'heavy') {
-            if (Math.random() < 0.25) {
-                window.battleUI.onLog('<span class="lose">Промах!</span>');
+        switch (action) {
+            case 'attack': {
+                Battle.startCooldown('attack');
+                Battle.doAttack(1, 'АТАКА', window.battleUI);
+                break;
+            }
+            case 'heavy': {
+                Battle.startCooldown('heavy');
+                if (Math.random() < 0.25) {
+                    window.battleUI.onLog('Тяжёлый удар промахнулся!');
+                    Battle.bossTurn(window.battleUI);
+                } else {
+                    Battle.doAttack(1.8, 'ТЯЖЁЛЫЙ УДАР', window.battleUI);
+                }
+                break;
+            }
+            case 'defend': {
+                Battle.startCooldown('defend');
+                Battle.battleState.defending = true;
+                window.battleUI.onLog('<span class="win">Герой в защите.</span>');
                 Battle.bossTurn(window.battleUI);
-            } else Battle.doAttack(1.8, 'ТЯЖЁЛЫЙ УДАР', window.battleUI);
-        }
-        if (action === 'defend') {
-            Battle.battleState.defending = true;
-            window.battleUI.onLog('Герой в защите.');
-            Battle.bossTurn(window.battleUI);
-        }
-        if (action === 'potion') {
-            if (Battle.battleState.potions <= 0) return;
-            const heal = state.hero.maxHp * 0.3;
-            state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + heal);
-            Battle.battleState.potions--;
-            document.getElementById('potion-count').textContent = Battle.battleState.potions;
-            document.getElementById('hero-battle-hp').textContent = state.hero.hp.toFixed(0);
-            document.getElementById('hero-hp-bar').style.width = (state.hero.hp / state.hero.maxHp * 100) + '%';
-            window.battleUI.onLog(`<span class="win">Зелье: +${heal.toFixed(0)} HP</span>`);
-            playSound('heal');
-            Battle.bossTurn(window.battleUI);
+                break;
+            }
+            case 'potion': {
+                if (Battle.battleState.potions <= 0) {
+                    window.battleUI.onLog('<span class="lose">Зелья закончились!</span>');
+                    return;
+                }
+                Battle.startCooldown('potion');
+                const heal = state.hero.maxHp * 0.3;
+                state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + heal);
+                Battle.battleState.potions--;
+                UI.updateBattleHP();
+                window.battleUI.onLog(`<span class="win">Зелье: +${heal.toFixed(0)} HP</span>`);
+                playSound('heal');
+                Battle.bossTurn(window.battleUI);
+                break;
+            }
+            case 'ok': {
+                // ОК = обычная атака (подтверждение)
+                if (!Battle.isSkillReady('attack')) return;
+                Battle.startCooldown('attack');
+                Battle.doAttack(1, 'АТАКА', window.battleUI);
+                break;
+            }
         }
     };
 
+    // ============================================================
+    // ПОБЕГ / ЗАВЕРШЕНИЕ
+    // ============================================================
     window.fleeBattle = () => {
         Battle.battleState.active = false;
+        Battle.clearBattleTimers();
+        document.getElementById('victory-modal').classList.add('hidden');
         if (Battle.battleState.isTower) {
             UI.goToScreen('tower-screen');
             renderTower();
@@ -150,10 +267,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.startDaily = () => window.showModal('В РАЗРАБОТКЕ', 'Ежедневный босс пока в разработке!');
+    window.closeVictoryModal = () => UI.closeVictoryModal();
+
+    // Повторить бой (из модалки победы)
+    window.repeatBattle = () => {
+        document.getElementById('victory-modal').classList.add('hidden');
+        const boss = Battle.battleState.currentBoss;
+        if (boss) {
+            Battle.beginBattle(boss, Battle.battleState.isTower);
+            window.setupBattleUI(boss);
+            UI.goToScreen('battle-screen');
+        }
+    };
+
+    window.startDaily = () => alert('Ежедневный босс пока в разработке!');
     window.startTowerBattle = startTowerBattle;
 
-    // --- Вкладки ---
+    // --- Вкладки магазина ---
     document.querySelectorAll('.shop-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
@@ -163,6 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Вкладки инвентаря ---
     document.querySelectorAll('.inv-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('active'));
@@ -172,6 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- Слоты экипировки ---
     document.querySelectorAll('.equip-slot').forEach(slot => {
         slot.addEventListener('click', () => {
             UI.openEquipModal(slot.dataset.slot);

@@ -203,7 +203,6 @@ export function renderShop() {
     });
 }
 
-// Модалка выбора предмета для слота
 export function openEquipModal(type) {
     document.getElementById('equip-modal').classList.remove('hidden');
     document.getElementById('modal-slot-name').textContent = SLOT_LABELS[type] || type.toUpperCase();
@@ -252,4 +251,179 @@ export function renderModalItems(type) {
             <button onclick="window.equipItem('${id}')">НАДЕТЬ</button>`;
         box.appendChild(d);
     });
+}
+
+/* ============================================================
+   НОВЫЕ ФУНКЦИИ ДЛЯ БОЕВОГО ЭКРАНА
+   ============================================================ */
+
+// Заполняет новый боевой интерфейс данными
+export function renderBattleUI(boss, isTower = false) {
+    const hero = state.hero;
+
+    document.getElementById('bt-hero-name').textContent = 'ГЕРОЙ';
+    document.getElementById('bt-boss-name').textContent = boss.name;
+
+    document.getElementById('bt-hero-max-hp').textContent = hero.maxHp.toFixed(0);
+    document.getElementById('bt-hero-hp').textContent = hero.hp.toFixed(0);
+    document.getElementById('bt-hero-mana').textContent = '100';
+    document.getElementById('bt-hero-max-mana').textContent = '100';
+
+    document.getElementById('bt-hero-hp-fill').style.width = '100%';
+    document.getElementById('bt-hero-mana-fill').style.width = '100%';
+
+    document.getElementById('bt-boss-max-hp').textContent = boss.hp;
+    document.getElementById('bt-boss-hp').textContent = boss.hp;
+    document.getElementById('bt-boss-hp-fill').style.width = '100%';
+
+    const bossImg = document.getElementById('bt-boss-img');
+    bossImg.src = boss.image;
+    bossImg.onerror = () => { bossImg.src = 'https://via.placeholder.com/260x340/1a1a2e/e94560?text=Boss'; };
+
+    const heroImg = document.getElementById('bt-hero-img');
+    heroImg.src = 'images/hero_full.png';
+
+    document.getElementById('battle-log').innerHTML = '';
+    document.getElementById('bt-potion-count').textContent = '3';
+
+    document.getElementById('bt-timer').textContent = '00:00:00';
+
+    // Очистка кулдаунов
+    ['attack', 'heavy', 'defend', 'potion'].forEach(s => {
+        const btn = document.querySelector(`.skill-btn[data-skill="${s}"]`);
+        const cd = document.getElementById(`cd-${s}`);
+        if (btn) btn.classList.remove('on-cooldown');
+        if (cd) cd.style.width = '100%';
+    });
+
+    // Быстрые слоты (зелья) слева
+    renderQuickSlots();
+}
+
+// Обновляет HP-бары и цифры в новом бою
+export function updateBattleHP() {
+    const hero = state.hero;
+    const bs = window.Battle && window.Battle.battleState
+        ? window.Battle.battleState
+        : null;
+
+    const heroHp = Math.max(0, hero.hp);
+    document.getElementById('bt-hero-hp').textContent = heroHp.toFixed(0);
+    document.getElementById('bt-hero-max-hp').textContent = hero.maxHp.toFixed(0);
+    document.getElementById('bt-hero-hp-fill').style.width =
+        Math.max(0, Math.min(100, (heroHp / hero.maxHp) * 100)) + '%';
+
+    if (bs) {
+        const bossHp = Math.max(0, bs.bossHp);
+        const bossMax = bs.bossMaxHp || 1;
+        document.getElementById('bt-boss-hp').textContent = bossHp.toFixed(0);
+        document.getElementById('bt-boss-max-hp').textContent = bossMax;
+        document.getElementById('bt-boss-hp-fill').style.width =
+            Math.max(0, Math.min(100, (bossHp / bossMax) * 100)) + '%';
+        document.getElementById('bt-potion-count').textContent = bs.potions;
+    }
+}
+
+// Рендер левой панели быстрых слотов (зелья)
+export function renderQuickSlots() {
+    const wrap = document.getElementById('quick-slots');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+
+    const slots = [
+        { icon: '🧪', key: 'potion', count: (state.hero.consumables && state.hero.consumables.potion) || 0, label: 'Зелье' },
+        { icon: '💊', key: 'elixir', count: (state.hero.consumables && state.hero.consumables.elixir) || 0, label: 'Эликсир' },
+        { icon: '🔮', key: 'orb',    count: (state.hero.consumables && state.hero.consumables.orb) || 0,    label: 'Сфера' }
+    ];
+
+    slots.forEach((s, i) => {
+        const div = document.createElement('div');
+        div.className = 'quick-slot';
+        div.title = s.label;
+        div.innerHTML = `
+            <div class="qs-icon">${s.icon}</div>
+            <div class="qs-count">${s.count > 999 ? '999+' : s.count}</div>`;
+        div.addEventListener('click', () => {
+            if (s.key === 'potion') window.playerAction('potion');
+        });
+        wrap.appendChild(div);
+    });
+}
+
+// Показ модалки победы с трофеями и уроном
+export function showVictoryModal(rewards) {
+    const modal = document.getElementById('victory-modal');
+    if (!modal) return;
+
+    const dmg = (window.Battle && window.Battle.battleState)
+        ? Math.round(window.Battle.battleState.totalDamage)
+        : 0;
+    document.getElementById('victory-dmg').textContent = dmg.toLocaleString('ru-RU');
+
+    const trophiesBox = document.getElementById('victory-trophies');
+    trophiesBox.innerHTML = '';
+
+    const items = rewards.items || [];
+    items.forEach(it => {
+        const d = document.createElement('div');
+        d.className = 'vt-item';
+        d.innerHTML = `
+            <div class="vt-icon">${it.icon || '🎁'}</div>
+            <div class="vt-amount">×${it.amount || 1}</div>
+            <div class="vt-label">${it.label || 'Трофей'}</div>`;
+        trophiesBox.appendChild(d);
+    });
+
+    if (rewards.gold) {
+        const d = document.createElement('div');
+        d.className = 'vt-item';
+        d.innerHTML = `
+            <div class="vt-icon">💰</div>
+            <div class="vt-amount">+${rewards.gold}</div>
+            <div class="vt-label">Золото</div>`;
+        trophiesBox.appendChild(d);
+    }
+
+    if (rewards.stars) {
+        const d = document.createElement('div');
+        d.className = 'vt-item';
+        d.innerHTML = `
+            <div class="vt-icon">⭐</div>
+            <div class="vt-amount">+${rewards.stars}</div>
+            <div class="vt-label">Звёзды</div>`;
+        trophiesBox.appendChild(d);
+    }
+
+    // Боковые панели
+    const rating = document.getElementById('victory-rating');
+    rating.innerHTML = `
+        <li><span>1. Тень</span><b>12 480</b></li>
+        <li><span>2. Клык</span><b>11 320</b></li>
+        <li><span>3. Пепел</span><b>10 990</b></li>
+        <li><span>Вы</span><b>${dmg.toLocaleString('ru-RU')}</b></li>`;
+
+    const trophyList = document.getElementById('victory-trophy-list');
+    trophyList.innerHTML = `
+        <li><span>Золото</span><b>+${rewards.gold || 0}</b></li>
+        <li><span>Звёзды</span><b>+${rewards.stars || 0}</b></li>
+        <li><span>Предметы</span><b>${(rewards.items || []).length}</b></li>`;
+
+    modal.classList.remove('hidden');
+}
+
+// Закрыть модалку победы
+export function closeVictoryModal() {
+    const modal = document.getElementById('victory-modal');
+    if (modal) modal.classList.add('hidden');
+
+    // Останавливаем таймер
+    if (window.Battle) window.Battle.clearBattleTimers();
+
+    // Возврат на карту / башню
+    if (window.Battle && window.Battle.battleState.isTower) {
+        goToScreen('tower-screen');
+        if (window.renderTower) window.renderTower();
+    } else {
+        goToScreen('map-screen');
+    }
 }
