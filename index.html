@@ -10,7 +10,7 @@
 
 <!-- ================= ГЛАВНЫЙ ЭКРАН (БАЗА) ================= -->
 <div id="main-screen" class="screen active">
-    
+
     <!-- Верхняя панель -->
     <div id="top-bar">
         <div class="top-left">
@@ -29,8 +29,7 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Панель валюты -->
+
         <div class="top-center">
             <div class="currency-block">
                 <img src="images/coin_silver.png" onerror="this.style.display='none'">
@@ -283,12 +282,20 @@
         <h1>БАШНЯ</h1>
         <button class="back-btn" onclick="goToScreen('main-screen')">НАЗАД</button>
     </div>
-    <div class="tower-info">
-        <div>Этаж: <b id="tower-floor">1</b></div>
-        <div>Босс: <b id="tower-boss-name">—</b></div>
-        <div>Рекорд: <b id="tower-record">0</b></div>
+    <div class="tower-layout">
+        <div class="tower-panel">
+            <div class="tower-floor-big">
+                <span class="tower-floor-label">ЭТАЖ</span>
+                <span class="tower-floor-value" id="tower-floor">1</span>
+            </div>
+            <div class="tower-record">🏆 Рекорд: <b id="tower-record">0</b></div>
+        </div>
+        <div class="tower-boss-card">
+            <h3 id="tower-boss-name">—</h3>
+            <div id="tower-boss-info" class="tower-boss-info"></div>
+            <button class="action-btn main-action tower-fight-btn" onclick="startTowerBattle()">СРАЗИТЬСЯ</button>
+        </div>
     </div>
-    <div class="buttons"><button class="action-btn main-action" onclick="startTowerBattle()">СРАЗИТЬСЯ</button></div>
 </div>
 
 <!-- ================= БОЙ ================= -->
@@ -297,7 +304,7 @@
         <h1 id="battle-title">БОЙ</h1>
         <button class="back-btn" onclick="fleeBattle()">СБЕЖАТЬ</button>
     </div>
-    
+
     <div class="battle-arena">
         <div class="fighter hero-side">
             <div class="fighter-name">ГЕРОЙ</div>
@@ -307,9 +314,9 @@
                 <span class="bar-text"><span id="hero-battle-hp">200</span> / <span id="hero-battle-max-hp">200</span></span>
             </div>
         </div>
-        
+
         <div class="vs">VS</div>
-        
+
         <div class="fighter boss-side">
             <div class="fighter-name" id="boss-name-battle">БОСС</div>
             <div class="boss-img-wrapper">
@@ -329,8 +336,30 @@
         <button class="action-btn" onclick="playerAction('defend')">ЗАЩИТА</button>
         <button class="action-btn" onclick="playerAction('potion')">ЗЕЛЬЕ (<span id="potion-count">3</span>)</button>
     </div>
-    
+
     <div class="log" id="battle-log"></div>
+</div>
+
+<!-- ================= МОДАЛКА БОССА ================= -->
+<div id="boss-modal" class="modal hidden">
+    <div class="boss-modal-content">
+        <button class="modal-close-btn" onclick="closeBossModal()">✖</button>
+        <div class="bm-header">
+            <div class="bm-portrait">
+                <img id="bm-img" src="" alt="">
+            </div>
+            <div class="bm-title-block">
+                <h2 id="bm-name">БОСС</h2>
+                <div class="bm-level-badge" id="bm-level">УР. 1</div>
+                <p id="bm-desc" class="bm-desc"></p>
+            </div>
+        </div>
+        <p class="bm-intro" id="bm-intro"></p>
+        <div class="bm-stats" id="bm-stats"></div>
+        <h3 class="bm-reward-title">НАГРАДА</h3>
+        <div class="bm-reward" id="bm-reward"></div>
+        <button class="bm-fight-btn" id="bm-fight" onclick="startBossFight()">В БОЙ</button>
+    </div>
 </div>
 
 <!-- ================= МОДАЛКИ ================= -->

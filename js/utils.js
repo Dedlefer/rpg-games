@@ -18,7 +18,6 @@ export function rarityColor(r) {
 
 export function todayStr() { return new Date().toISOString().slice(0,10); }
 
-// Звуки
 let audioCtx = null;
 export function playSound(type) {
     try {

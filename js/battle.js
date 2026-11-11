@@ -1,40 +1,43 @@
-import { state, gainXP, saveGame } from './state.js';
+import { state, syncHeroStats } from './state.js';
 
 export const battleState = {
     currentBoss: null,
     bossHp: 0,
     bossMaxHp: 0,
+    bossEnraged: false,
     defending: false,
     active: false,
     auto: false,
     timer: null,
     speed: 1,
     potions: 3,
-    towerMode: false
+    towerMode: false,
+    isTower: false
 };
 
-// Вызывается из UI при старте
 export function beginBattle(boss, isTower = false) {
+    const s = syncHeroStats();
     battleState.currentBoss = boss;
     battleState.bossMaxHp = boss.hp;
     battleState.bossHp = boss.hp;
+    battleState.bossEnraged = false;
     battleState.defending = false;
     battleState.active = true;
     battleState.potions = 3;
     battleState.towerMode = isTower;
-    state.hero.hp = state.hero.maxHp;
+    battleState.isTower = isTower;
+    state.hero.hp = s.maxHp;
 }
 
-// Логика атаки
 export function doAttack(multiplier, label, uiCallback) {
     if (!battleState.active) return;
-    
+
     let dmg = state.hero.damage * multiplier;
     const isCrit = Math.random() * 100 < state.hero.critChance;
     if (isCrit) dmg *= (2 + state.hero.critDamage / 100);
 
     uiCallback.onHit(dmg, isCrit, label);
-    
+
     battleState.bossHp = Math.max(0, battleState.bossHp - dmg);
     if (battleState.bossHp <= 0) {
         battleState.active = false;
@@ -48,20 +51,20 @@ export function bossTurn(uiCallback) {
     const boss = battleState.currentBoss;
     if (!boss || battleState.bossHp <= 0) return;
 
-    // Ярость босса
-    if (battleState.bossHp < battleState.bossMaxHp * 0.5 && !boss.enraged) {
-        boss.enraged = true;
+    if (battleState.bossHp < battleState.bossMaxHp * 0.5 && !battleState.bossEnraged) {
+        battleState.bossEnraged = true;
         uiCallback.onLog('<span class="crit">БОСС В ЯРОСТИ!</span>');
     }
 
     let bossDmg = boss.damage;
-    if (boss.enraged) bossDmg *= 1.5;
-    
-    // Броня героя
-    bossDmg = Math.max(1, bossDmg - state.hero.talents.def * 2);
+    if (battleState.bossEnraged) bossDmg *= 1.5;
 
-    // Уклонение
-    const evadeChance = boss.archetype === 'mage' ? state.hero.evade * 0.5 : state.hero.evade;
+    // Броня героя
+    bossDmg = Math.max(1, bossDmg - (state.hero.armor || 0));
+
+    const evadeChance = boss.archetype === 'mage'
+        ? state.hero.evade * 0.5
+        : state.hero.evade;
     if (Math.random() * 100 < evadeChance) {
         uiCallback.onLog('<span class="win">Уклонение!</span>');
         return;

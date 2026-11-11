@@ -1,21 +1,28 @@
-import { state, loadGame, saveGame, calcStats, gainXP } from './js/state.js';
-import { items, bosses, consumables } from './js/data.js';
+import { state, loadGame, saveGame, calcStats, gainXP, syncHeroStats } from './js/state.js';
+import { items, bosses } from './js/data.js';
 import * as Battle from './js/battle.js';
 import * as UI from './js/ui.js';
-import { rarityColor, itemBonusText, todayStr, playSound, SLOT_LABELS } from './js/utils.js';
+import { renderInventory, equipItem, unequipItem, sellItem } from './js/screens/inventory.js';
+import { openBossModal, closeBossModal, startBossFight } from './js/screens/boss-modal.js';
+import { renderTower, startTowerBattle } from './js/screens/tower.js';
+import { playSound } from './js/utils.js';
+
+window.UI = UI;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadGame();
+    syncHeroStats();
     UI.updateHUD();
     UI.renderBosses();
     UI.renderShop();
 
-    // --- Глобальные функции для HTML (onclick) ---
+    // --- Навигация ---
     window.goToScreen = (id) => {
         UI.goToScreen(id);
         if (id === 'map-screen') UI.renderBosses();
         if (id === 'shop-screen') UI.renderShop();
-        if (id === 'inventory-screen') UI.renderInventory();
+        if (id === 'inventory-screen') renderInventory();
+        if (id === 'tower-screen') renderTower();
     };
 
     window.openProfileModal = (tab) => UI.openProfileModal(tab);
@@ -26,12 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Магазин ---
     window.buyItem = (id) => {
         const item = items.find(i => i.id === id);
-        if (state.hero.silver >= item.price.silver) {
-            state.hero.silver -= item.price.silver;
-            state.hero.inventory.push(item.id);
-            saveGame(); UI.updateHUD(); UI.renderShop();
-            playSound('click');
-        } else alert('Мало серебра!');
+        if (!item) return;
+        const price = item.price;
+        if (state.hero.silver < (price.silver || 0)) return alert('Мало серебра!');
+        if (state.hero.gold < (price.gold || 0)) return alert('Мало золота!');
+        state.hero.silver -= price.silver || 0;
+        state.hero.gold -= price.gold || 0;
+        state.hero.inventory.push(item.id);
+        saveGame(); UI.updateHUD(); UI.renderShop();
+        playSound('click');
     };
 
     window.buyConsumable = (key, price) => {
@@ -44,40 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- Инвентарь ---
-    window.equipItem = (itemId) => {
-        const item = items.find(i => i.id === itemId);
-        const old = state.hero.equipment.find(id => {
-            const it = items.find(i => i.id === id); return it && it.type === item.type;
-        });
-        if (old) state.hero.inventory.push(old);
-        state.hero.equipment = state.hero.equipment.filter(id => id !== old);
-        state.hero.inventory = state.hero.inventory.filter(id => id !== itemId);
-        state.hero.equipment.push(itemId);
-        saveGame(); UI.updateHUD(); UI.renderInventory();
-        window.closeModal('equip-modal');
-        playSound('crit');
-    };
-
-    window.unequipItem = (type) => {
-        const id = state.hero.equipment.find(eid => {
-            const it = items.find(i => i.id === eid); return it && it.type === type;
-        });
-        if (!id) return;
-        state.hero.equipment = state.hero.equipment.filter(x => x !== id);
-        state.hero.inventory.push(id);
-        saveGame(); UI.updateHUD(); UI.renderInventory();
-        window.closeModal('equip-modal');
-    };
-
-    window.sellItem = (id) => {
-        const it = items.find(i => i.id === id);
-        if (!it) return;
-        const price = Math.floor(it.price.silver * 0.5);
-        state.hero.silver += price;
-        state.hero.inventory = state.hero.inventory.filter(x => x !== id);
-        saveGame(); UI.updateHUD(); UI.renderInventory();
-        playSound('click');
-    };
+    window.equipItem = equipItem;
+    window.unequipItem = unequipItem;
+    window.sellItem = sellItem;
 
     window.openChest = () => {
         if (state.hero.keys < 3) return;
@@ -87,21 +66,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const reward = pool[Math.floor(Math.random() * pool.length)];
         state.hero.inventory.push(reward.id);
         alert(`Из сундука выпал: ${reward.name}!`);
-        saveGame(); UI.updateHUD(); UI.renderInventory();
+        saveGame(); UI.updateHUD(); renderInventory();
         playSound('crit');
     };
 
-    // --- Карта и Бой ---
-    window.startFight = (index) => {
-        const boss = bosses[index];
-        if (state.hero.level < boss.levelRequired) return;
-        
-        Battle.beginBattle(boss, false);
-        UI.goToScreen('battle-screen');
-        
-        // Настройка UI боя
+    // --- Окно босса ---
+    window.openBossModal = openBossModal;
+    window.closeBossModal = closeBossModal;
+    window.startBossFight = startBossFight;
+
+    // --- Универсальный setup боя ---
+    window.setupBattleUI = (boss, overrides = {}) => {
         document.getElementById('boss-name-battle').textContent = boss.name;
-        document.getElementById('boss-img-battle').src = boss.image;
+        const img = document.getElementById('boss-img-battle');
+        img.src = boss.image;
+        img.onerror = () => { img.style.display = 'none'; };
+        img.style.display = '';
         document.getElementById('hero-battle-max-hp').textContent = state.hero.maxHp.toFixed(0);
         document.getElementById('hero-battle-hp').textContent = state.hero.hp.toFixed(0);
         document.getElementById('hero-hp-bar').style.width = '100%';
@@ -109,43 +89,55 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('boss-battle-max-hp').textContent = boss.hp;
         document.getElementById('boss-battle-hp').textContent = boss.hp;
         document.getElementById('battle-log').innerHTML = '';
-        
-        // Callbacks
+        document.getElementById('potion-count').textContent = Battle.battleState.potions;
+
         window.battleUI = {
             onHit: (dmg, isCrit, label) => {
                 document.getElementById('boss-battle-hp').textContent = Math.max(0, Battle.battleState.bossHp).toFixed(0);
                 document.getElementById('boss-hp-bar').style.width = Math.max(0, (Battle.battleState.bossHp / boss.hp * 100)) + '%';
-                document.getElementById('battle-log').innerHTML += `<div>${label}: ${dmg.toFixed(0)} ${isCrit?'(КРИТ!)':''}</div>`;
+                document.getElementById('battle-log').innerHTML += `<div>${label}: ${dmg.toFixed(0)} ${isCrit ? '(КРИТ!)' : ''}</div>`;
+                playSound(isCrit ? 'crit' : 'hit');
             },
             onBossHit: (dmg) => {
                 document.getElementById('hero-battle-hp').textContent = Math.max(0, state.hero.hp).toFixed(0);
                 document.getElementById('hero-hp-bar').style.width = Math.max(0, (state.hero.hp / state.hero.maxHp * 100)) + '%';
                 document.getElementById('battle-log').innerHTML += `<div>Босс: ${dmg.toFixed(0)}</div>`;
+                playSound('hit');
             },
             onLog: (msg) => { document.getElementById('battle-log').innerHTML += `<div>${msg}</div>`; },
-            onWin: () => {
+            onWin: overrides.onWin || (() => {
                 state.hero.silver += boss.reward.silver;
                 state.hero.gold += boss.reward.gold;
+                gainXP(boss.reward.xp);
                 if (!state.defeatedBosses.includes(boss.id)) state.defeatedBosses.push(boss.id);
                 saveGame(); UI.updateHUD();
-                alert(`Победа! Получено ${boss.reward.silver} сер. и ${boss.reward.gold} зол.`);
+                alert(`Победа! Получено ${boss.reward.silver} сер., ${boss.reward.gold} зол., ${boss.reward.xp} XP.`);
                 UI.goToScreen('map-screen');
-            },
-            onLose: () => { alert('Поражение...'); UI.goToScreen('main-screen'); }
+            }),
+            onLose: overrides.onLose || (() => {
+                alert('Поражение...');
+                UI.goToScreen('main-screen');
+            })
         };
     };
 
-    window.startDaily = () => {
-        // Заглушка для ежедневного босса
-        alert("Ежедневный босс пока в разработке!");
+    window.startFight = (index) => {
+        const boss = bosses[index];
+        if (!boss) return;
+        if (state.hero.level < boss.levelRequired) return;
+        Battle.beginBattle(boss, false);
+        UI.goToScreen('battle-screen');
+        window.setupBattleUI(boss);
     };
 
     window.playerAction = (action) => {
         if (!Battle.battleState.active) return;
         if (action === 'attack') Battle.doAttack(1, 'АТАКА', window.battleUI);
         if (action === 'heavy') {
-            if (Math.random() < 0.25) { window.battleUI.onLog('Промах!'); Battle.bossTurn(window.battleUI); }
-            else Battle.doAttack(1.8, 'ТЯЖЁЛЫЙ УДАР', window.battleUI);
+            if (Math.random() < 0.25) {
+                window.battleUI.onLog('Промах!');
+                Battle.bossTurn(window.battleUI);
+            } else Battle.doAttack(1.8, 'ТЯЖЁЛЫЙ УДАР', window.battleUI);
         }
         if (action === 'defend') {
             Battle.battleState.defending = true;
@@ -161,20 +153,25 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('hero-battle-hp').textContent = state.hero.hp.toFixed(0);
             document.getElementById('hero-hp-bar').style.width = (state.hero.hp / state.hero.maxHp * 100) + '%';
             window.battleUI.onLog(`Зелье: +${heal.toFixed(0)} HP`);
+            playSound('heal');
             Battle.bossTurn(window.battleUI);
         }
     };
 
     window.fleeBattle = () => {
         Battle.battleState.active = false;
-        UI.goToScreen('map-screen');
+        if (Battle.battleState.isTower) {
+            UI.goToScreen('tower-screen');
+            renderTower();
+        } else {
+            UI.goToScreen('map-screen');
+        }
     };
 
-    window.startTowerBattle = () => {
-        alert("Башня пока в разработке!");
-    };
+    window.startDaily = () => alert('Ежедневный босс пока в разработке!');
+    window.startTowerBattle = startTowerBattle;
 
-    // Слушатели вкладок магазина и инвентаря
+    // --- Вкладки ---
     document.querySelectorAll('.shop-tab').forEach(tab => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
@@ -188,12 +185,11 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', () => {
             document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            UI.renderInventory();
+            renderInventory();
             playSound('click');
         });
     });
 
-    // Слоты экипировки
     document.querySelectorAll('.equip-slot').forEach(slot => {
         slot.addEventListener('click', () => {
             UI.openEquipModal(slot.dataset.slot);

@@ -1,21 +1,19 @@
-import { state, calcStats, saveGame } from './state.js';
+import { state, calcStats, saveGame, syncHeroStats } from './state.js';
 import { items as itemData, consumables as consData, achievements as achData, bosses as bossData } from './data.js';
 import { itemBonusText, rarityColor, todayStr, playSound, SLOT_LABELS } from './utils.js';
 
-window.itemsData = itemData;
-
 export function updateHUD() {
     const h = state.hero;
-    const s = calcStats();
+    const s = syncHeroStats();
 
     document.getElementById('hero-level').textContent = h.level;
     document.getElementById('left-hero-level').textContent = h.level;
     document.getElementById('hero-xp').textContent = h.xp;
     document.getElementById('hero-xp-to-next').textContent = h.xpToNext;
-    document.getElementById('hero-xp-bar').style.width = (h.xp / h.xpToNext * 100) + '%';
+    document.getElementById('hero-xp-bar').style.width = Math.min(100, (h.xp / h.xpToNext * 100)) + '%';
     document.getElementById('hero-hp').textContent = s.maxHp.toFixed(0);
     document.getElementById('hero-damage').textContent = s.damage.toFixed(0);
-    
+
     document.getElementById('hero-silver').textContent = h.silver;
     document.getElementById('hero-gold').textContent = h.gold;
     document.getElementById('hero-diamonds').textContent = h.diamonds;
@@ -66,7 +64,7 @@ export function switchProfileTab(tabId) {
     document.querySelectorAll('.profile-tab-content').forEach(c => c.classList.remove('active'));
     document.querySelector(`.profile-tab[data-tab="${tabId}"]`).classList.add('active');
     document.getElementById(`tab-${tabId}`).classList.add('active');
-    
+
     if (tabId === 'achievements') renderAchievements();
 }
 
@@ -83,13 +81,13 @@ export function updateProfileUI() {
     document.getElementById('lvl-def').textContent = h.talents.def;
     document.getElementById('lvl-crit').textContent = h.talents.crit;
     document.getElementById('lvl-heal').textContent = h.talents.heal;
-    
+
     document.getElementById('price-hp').innerHTML = `💰 ${getTalentPrice('hp', h.talents.hp).silver}`;
     document.getElementById('price-dmg').innerHTML = `💰 ${getTalentPrice('dmg', h.talents.dmg).silver}`;
     document.getElementById('price-def').innerHTML = `💰 ${getTalentPrice('def', h.talents.def).silver}`;
     document.getElementById('price-crit').innerHTML = `💰 ${getTalentPrice('crit', h.talents.crit).silver}`;
     document.getElementById('price-heal').innerHTML = `🪙 ${getTalentPrice('heal', h.talents.heal).gold}`;
-    
+
     document.getElementById('talent-silver').textContent = h.silver;
     document.getElementById('talent-gold').textContent = h.gold;
 }
@@ -97,14 +95,15 @@ export function updateProfileUI() {
 export function upgradeTalent(id) {
     const lvl = state.hero.talents[id];
     const price = getTalentPrice(id, lvl);
-    
+
     if (price.silver > 0 && state.hero.silver < price.silver) return alert('Мало серебра!');
     if (price.gold > 0 && state.hero.gold < price.gold) return alert('Мало золота!');
-    
+
     state.hero.silver -= price.silver;
     state.hero.gold -= price.gold;
     state.hero.talents[id]++;
-    
+
+    syncHeroStats();
     updateHUD();
     updateProfileUI();
     saveGame();
@@ -132,7 +131,7 @@ export function renderBosses() {
     list.innerHTML = '';
     const daily = document.getElementById('daily-boss-banner');
     const claimedToday = state.hero.dailyClaimedDate === todayStr();
-    
+
     if (!claimedToday) {
         daily.innerHTML = `<div class="daily-banner"><b>АНОМАЛИЯ ДНЯ</b> — ×3 награда!<button onclick="window.startDaily()">СРАЗИТЬСЯ</button></div>`;
     } else {
@@ -147,9 +146,13 @@ export function renderBosses() {
         row.style.left = (15 + (index % 3) * 30) + '%';
         row.style.top = (20 + Math.floor(index / 3) * 35) + '%';
         row.innerHTML = `
-            <div class="node-marker"><img src="${boss.image}" class="boss-thumb" onerror="this.style.display='none'"></div>
-            <div class="node-info"><h3>${boss.name}</h3><p>УР. ${boss.levelRequired}</p></div>
-            ${locked ? '<span class="badge locked-badge">🔒</span>' : defeated ? '<span class="badge defeated-badge">✔</span>' : `<button class="btn-fight" onclick="window.startFight(${index})">БОЙ</button>`}`;
+            <div class="node-marker" onclick="window.openBossModal(${index})">
+                <img src="${boss.image}" class="boss-thumb" onerror="this.style.display='none'">
+            </div>
+            <div class="node-info" onclick="window.openBossModal(${index})">
+                <h3>${boss.name}</h3><p>УР. ${boss.levelRequired}</p>
+            </div>
+            ${locked ? '<span class="badge locked-badge">🔒</span>' : defeated ? '<span class="badge defeated-badge">✔</span>' : ''}`;
         list.appendChild(row);
     });
 }
@@ -157,12 +160,10 @@ export function renderBosses() {
 export function renderShop() {
     const tabs = document.querySelectorAll('.shop-tab');
     let currentType = 'weapon';
-    tabs.forEach(t => { if(t.classList.contains('active')) currentType = t.dataset.type; });
+    tabs.forEach(t => { if (t.classList.contains('active')) currentType = t.dataset.type; });
 
     const grid = document.getElementById('shop-grid');
     grid.innerHTML = '';
-    
-    // Товар дня (просто заглушка)
     document.getElementById('daily-deal').innerHTML = '';
 
     if (currentType === 'potion') {
@@ -192,65 +193,14 @@ export function renderShop() {
             <h3>${item.name}</h3>
             <p>${itemBonusText(item)}</p>
             <div class="price">
-                <img src="images/coin_silver.png" class="price-icon" onerror="this.style.display='none'">${item.price.silver}
-                <img src="images/coin_gold.png" class="price-icon" onerror="this.style.display='none'">${item.price.gold}
+                <img src="images/coin_silver.png" class="price-icon" onerror="this.style.display='none'">${item.price.silver || 0}
+                <img src="images/coin_gold.png" class="price-icon" onerror="this.style.display='none'">${item.price.gold || 0}
             </div>
             ${owned
                 ? `<div class="owned-label">${equipped ? 'НАДЕТО' : 'В СУМКЕ'}</div>`
                 : `<button onclick="window.buyItem('${item.id}')">КУПИТЬ</button>`}`;
         grid.appendChild(d);
     });
-}
-
-// ИНВЕНТАРЬ
-export function renderInventory() {
-    const currentTab = document.querySelector('.inv-tab.active').dataset.tab;
-    const grid = document.getElementById('inventory-grid');
-    const empty = document.getElementById('inventory-empty');
-    grid.innerHTML = '';
-
-    if (currentTab === 'equipment') {
-        if (state.hero.inventory.length === 0) { empty.classList.remove('hidden'); return; }
-        empty.classList.add('hidden');
-        state.hero.inventory.forEach(id => {
-            const it = itemData.find(i => i.id === id); if (!it) return;
-            const d = document.createElement('div');
-            d.className = 'inventory-item';
-            d.style.borderColor = rarityColor(it.rarity);
-            d.innerHTML = `
-                <img src="${it.image}" class="item-img" onerror="this.style.display='none'">
-                <h3>${it.name}</h3>
-                <p class="item-type">${SLOT_LABELS[it.type]}</p>
-                <p>${itemBonusText(it)}</p>
-                <button onclick="window.equipItem('${it.id}')">НАДЕТЬ</button>
-                <button class="sell-btn" onclick="window.sellItem('${it.id}')">ПРОДАТЬ</button>`;
-            grid.appendChild(d);
-        });
-    } else if (currentTab === 'consumable') {
-        empty.classList.add('hidden');
-        Object.entries(state.hero.consumables).forEach(([key, count]) => {
-            if (!count) return;
-            const c = consData.find(x => x.key === key);
-            if (!c) return;
-            const d = document.createElement('div');
-            d.className = 'inventory-item';
-            d.innerHTML = `
-                <img src="${c.image}" class="item-img" onerror="this.style.display='none'">
-                <h3>${c.name}</h3>
-                <p>В наличии: <b>${count}</b></p>`;
-            grid.appendChild(d);
-        });
-    } else if (currentTab === 'keys') {
-        empty.classList.add('hidden');
-        const d = document.createElement('div');
-        d.className = 'inventory-item';
-        d.innerHTML = `
-            <img src="images/key.png" class="item-img" onerror="this.style.display='none'">
-            <h3>Ключи: ${state.hero.keys}</h3>
-            <p>3 ключа = 1 предмет</p>
-            <button onclick="window.openChest()" ${state.hero.keys < 3 ? 'disabled' : ''}>ОТКРЫТЬ</button>`;
-        grid.appendChild(d);
-    }
 }
 
 // Модалка выбора предмета для слота
@@ -263,12 +213,11 @@ export function openEquipModal(type) {
 export function renderModalItems(type) {
     const box = document.getElementById('modal-items');
     box.innerHTML = '';
-    
-    // Надетый предмет
+
     const equippedId = state.hero.equipment.find(id => {
         const it = itemData.find(i => i.id === id); return it && it.type === type;
     });
-    
+
     if (equippedId) {
         const it = itemData.find(i => i.id === equippedId);
         const d = document.createElement('div');
@@ -282,16 +231,15 @@ export function renderModalItems(type) {
         box.appendChild(d);
     }
 
-    // Доступные предметы из инвентаря
     const available = state.hero.inventory.filter(id => {
         const it = itemData.find(i => i.id === id); return it && it.type === type;
     });
-    
+
     if (!equippedId && available.length === 0) {
         box.innerHTML += '<p style="color:#666; text-align:center; width:100%;">Нет предметов этого типа</p>';
         return;
     }
-    
+
     available.forEach(id => {
         const it = itemData.find(i => i.id === id);
         const d = document.createElement('div');

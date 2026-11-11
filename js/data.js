@@ -68,3 +68,28 @@ export const achievements = [
     { id:'titan_slayer', name:'Убийца титанов', desc:'Убей Титана-слизня', reward:{diamonds:5}, check:(state) => state.defeatedBosses.includes('boss-8') },
     { id:'rich', name:'Кредитный рейтинг', desc:'Накопи 10 000 серебра', reward:{diamonds:2}, check:(state) => state.hero.silver >= 10000 }
 ];
+
+// Генерация босса башни по этажу
+export function makeTowerBoss(floor) {
+    const archetypes = ['tank', 'berserk', 'mage'];
+    const names = ['Страж этажа', 'Эхо яруса', 'Мембранный урод', 'Гнилой гигант', 'Споровый колосс'];
+    const baseHp = 400 + floor * 250;
+    const baseDmg = 6 + floor * 3;
+    return {
+        id: 'tower-' + floor,
+        name: `${names[(floor - 1) % names.length]} ${floor}`,
+        levelRequired: floor,
+        hp: Math.floor(baseHp * (1 + floor * 0.05)),
+        damage: Math.floor(baseDmg),
+        archetype: archetypes[(floor - 1) % archetypes.length],
+        reward: {
+            xp: 40 + floor * 20,
+            silver: 60 + floor * 30,
+            gold: 5 + floor * 2
+        },
+        image: 'images/boss_spore.png',
+        description: `Этаж ${floor} башни.`,
+        intro: 'Тьма сгущается...',
+        isTower: true
+    };
+}
