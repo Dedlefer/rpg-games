@@ -1,0 +1,17 @@
+@"
+# Aider
+.aider*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Логи и временное
+*.log
+"@ | Out-File -Encoding utf8 .gitignore
