@@ -5,9 +5,24 @@ import * as UI from './js/ui.js';
 import { renderInventory, equipItem, unequipItem, sellItem } from './js/inventory.js';
 import { openBossModal, closeBossModal, startBossFight } from './js/boss-modal.js';
 import { renderTower, startTowerBattle } from './js/tower.js';
+import { setupBattleUI, showVictoryScreen } from './js/battle-ui.js'; // Импорт UI боя
 import { playSound } from './js/utils.js';
 
 window.UI = UI;
+
+// Универсальная функция показа модалки (замена alert)
+window.showModal = (title, text, onOk, isDanger = false) => {
+    const modal = document.getElementById('custom-modal');
+    document.getElementById('cm-title').textContent = title;
+    document.getElementById('cm-title').style.color = isDanger ? 'var(--accent)' : 'var(--gold)';
+    document.getElementById('cm-text').textContent = text;
+    modal.classList.remove('hidden');
+    
+    document.getElementById('cm-ok').onclick = () => {
+        modal.classList.add('hidden');
+        if (onOk) onOk();
+    };
+};
 
 document.addEventListener('DOMContentLoaded', () => {
     loadGame();
@@ -30,13 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.upgradeTalent = (id) => UI.upgradeTalent(id);
     window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
 
-    // --- Магазин ---
+    // --- Магазин (с кастомными модалками) ---
     window.buyItem = (id) => {
         const item = items.find(i => i.id === id);
         if (!item) return;
         const price = item.price;
-        if (state.hero.silver < (price.silver || 0)) return alert('Мало серебра!');
-        if (state.hero.gold < (price.gold || 0)) return alert('Мало золота!');
+        if (state.hero.silver < (price.silver || 0)) return window.showModal('ОШИБКА', 'Недостаточно серебра!', null, true);
+        if (state.hero.gold < (price.gold || 0)) return window.showModal('ОШИБКА', 'Недостаточно золота!', null, true);
         state.hero.silver -= price.silver || 0;
         state.hero.gold -= price.gold || 0;
         state.hero.inventory.push(item.id);
@@ -50,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state.hero.consumables[key] = (state.hero.consumables[key] || 0) + 1;
             saveGame(); UI.updateHUD(); UI.renderShop();
             playSound('click');
-        } else alert('Мало серебра!');
+        } else window.showModal('ОШИБКА', 'Недостаточно серебра!', null, true);
     };
 
     // --- Инвентарь ---
@@ -62,12 +77,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.hero.keys < 3) return;
         state.hero.keys -= 3;
         const pool = items.filter(i => !state.hero.inventory.includes(i.id) && !state.hero.equipment.includes(i.id));
-        if (pool.length === 0) { alert('Все предметы собраны!'); state.hero.keys += 3; return; }
+        if (pool.length === 0) {
+            state.hero.keys += 3;
+            return window.showModal('СУНДУК', 'Вы уже собрали все предметы!');
+        }
         const reward = pool[Math.floor(Math.random() * pool.length)];
         state.hero.inventory.push(reward.id);
-        alert(`Из сундука выпал: ${reward.name}!`);
         saveGame(); UI.updateHUD(); renderInventory();
         playSound('crit');
+        window.showModal('СУНДУК ОТКРЫТ', `Вы получили: ${reward.name}!`);
     };
 
     // --- Окно босса ---
@@ -75,51 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeBossModal = closeBossModal;
     window.startBossFight = startBossFight;
 
-    // --- Универсальный setup боя ---
-    window.setupBattleUI = (boss, overrides = {}) => {
-        document.getElementById('boss-name-battle').textContent = boss.name;
-        const img = document.getElementById('boss-img-battle');
-        img.src = boss.image;
-        img.onerror = () => { img.style.display = 'none'; };
-        img.style.display = '';
-        document.getElementById('hero-battle-max-hp').textContent = state.hero.maxHp.toFixed(0);
-        document.getElementById('hero-battle-hp').textContent = state.hero.hp.toFixed(0);
-        document.getElementById('hero-hp-bar').style.width = '100%';
-        document.getElementById('boss-hp-bar').style.width = '100%';
-        document.getElementById('boss-battle-max-hp').textContent = boss.hp;
-        document.getElementById('boss-battle-hp').textContent = boss.hp;
-        document.getElementById('battle-log').innerHTML = '';
-        document.getElementById('potion-count').textContent = Battle.battleState.potions;
-
-        window.battleUI = {
-            onHit: (dmg, isCrit, label) => {
-                document.getElementById('boss-battle-hp').textContent = Math.max(0, Battle.battleState.bossHp).toFixed(0);
-                document.getElementById('boss-hp-bar').style.width = Math.max(0, (Battle.battleState.bossHp / boss.hp * 100)) + '%';
-                document.getElementById('battle-log').innerHTML += `<div>${label}: ${dmg.toFixed(0)} ${isCrit ? '(КРИТ!)' : ''}</div>`;
-                playSound(isCrit ? 'crit' : 'hit');
-            },
-            onBossHit: (dmg) => {
-                document.getElementById('hero-battle-hp').textContent = Math.max(0, state.hero.hp).toFixed(0);
-                document.getElementById('hero-hp-bar').style.width = Math.max(0, (state.hero.hp / state.hero.maxHp * 100)) + '%';
-                document.getElementById('battle-log').innerHTML += `<div>Босс: ${dmg.toFixed(0)}</div>`;
-                playSound('hit');
-            },
-            onLog: (msg) => { document.getElementById('battle-log').innerHTML += `<div>${msg}</div>`; },
-            onWin: overrides.onWin || (() => {
-                state.hero.silver += boss.reward.silver;
-                state.hero.gold += boss.reward.gold;
-                gainXP(boss.reward.xp);
-                if (!state.defeatedBosses.includes(boss.id)) state.defeatedBosses.push(boss.id);
-                saveGame(); UI.updateHUD();
-                alert(`Победа! Получено ${boss.reward.silver} сер., ${boss.reward.gold} зол., ${boss.reward.xp} XP.`);
-                UI.goToScreen('map-screen');
-            }),
-            onLose: overrides.onLose || (() => {
-                alert('Поражение...');
-                UI.goToScreen('main-screen');
-            })
-        };
-    };
+    // --- Бой ---
+    window.setupBattleUI = setupBattleUI;
 
     window.startFight = (index) => {
         const boss = bosses[index];
@@ -127,15 +102,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (state.hero.level < boss.levelRequired) return;
         Battle.beginBattle(boss, false);
         UI.goToScreen('battle-screen');
-        window.setupBattleUI(boss);
+        setupBattleUI(boss);
     };
 
     window.playerAction = (action) => {
         if (!Battle.battleState.active) return;
+        
+        const btn = document.getElementById(`btn-action-${action}`);
+        if (btn) {
+            btn.style.transform = 'scale(0.9)';
+            setTimeout(() => btn.style.transform = '', 100);
+        }
+
         if (action === 'attack') Battle.doAttack(1, 'АТАКА', window.battleUI);
         if (action === 'heavy') {
             if (Math.random() < 0.25) {
-                window.battleUI.onLog('Промах!');
+                window.battleUI.onLog('<span class="lose">Промах!</span>');
                 Battle.bossTurn(window.battleUI);
             } else Battle.doAttack(1.8, 'ТЯЖЁЛЫЙ УДАР', window.battleUI);
         }
@@ -152,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('potion-count').textContent = Battle.battleState.potions;
             document.getElementById('hero-battle-hp').textContent = state.hero.hp.toFixed(0);
             document.getElementById('hero-hp-bar').style.width = (state.hero.hp / state.hero.maxHp * 100) + '%';
-            window.battleUI.onLog(`Зелье: +${heal.toFixed(0)} HP`);
+            window.battleUI.onLog(`<span class="win">Зелье: +${heal.toFixed(0)} HP</span>`);
             playSound('heal');
             Battle.bossTurn(window.battleUI);
         }
@@ -168,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.startDaily = () => alert('Ежедневный босс пока в разработке!');
+    window.startDaily = () => window.showModal('В РАЗРАБОТКЕ', 'Ежедневный босс пока в разработке!');
     window.startTowerBattle = startTowerBattle;
 
     // --- Вкладки ---
