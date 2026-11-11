@@ -2,9 +2,9 @@ import { state, loadGame, saveGame, calcStats, gainXP, syncHeroStats } from './j
 import { items, bosses } from './js/data.js';
 import * as Battle from './js/battle.js';
 import * as UI from './js/ui.js';
-import { renderInventory, equipItem, unequipItem, sellItem } from './js/screens/inventory.js';
-import { openBossModal, closeBossModal, startBossFight } from './js/screens/boss-modal.js';
-import { renderTower, startTowerBattle } from './js/screens/tower.js';
+import { renderInventory, equipItem, unequipItem, sellItem } from './js/inventory.js';
+import { openBossModal, closeBossModal, startBossFight } from './js/boss-modal.js';
+import { renderTower, startTowerBattle } from './js/tower.js';
 import { playSound } from './js/utils.js';
 
 window.UI = UI;

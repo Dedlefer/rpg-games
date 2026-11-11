@@ -1,7 +1,8 @@
-import { state, saveGame, syncHeroStats } from '../state.js';
-import { makeTowerBoss } from '../data.js';
-import * as Battle from '../battle.js';
-import { playSound } from '../utils.js';
+import { state, saveGame, gainXP } from './state.js';
+import { makeTowerBoss } from './data.js';
+import * as Battle from './battle.js';
+import * as UI from './ui.js';
+import { playSound } from './utils.js';
 
 export function renderTower() {
     const floor = state.hero.towerFloor || 1;

@@ -1,6 +1,6 @@
-import { bosses } from '../data.js';
-import { state, calcStats } from '../state.js';
-import { playSound } from '../utils.js';
+import { bosses } from './data.js';
+import { state, calcStats } from './state.js';
+import { playSound } from './utils.js';
 
 let currentBossIndex = -1;
 

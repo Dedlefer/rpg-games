@@ -1,7 +1,7 @@
-import { state, saveGame, syncHeroStats } from '../state.js';
-import { items as itemData, consumables as consData } from '../data.js';
-import { rarityColor, itemBonusText, SLOT_LABELS, playSound } from '../utils.js';
-import { updateHUD, openEquipModal } from '../ui.js';
+import { state, saveGame, syncHeroStats } from './state.js';
+import { items as itemData, consumables as consData } from './data.js';
+import { rarityColor, itemBonusText, SLOT_LABELS, playSound } from './utils.js';
+import { updateHUD } from './ui.js';
 
 export function renderInventory() {
     const activeTab = document.querySelector('.inv-tab.active');
