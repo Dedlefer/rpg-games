@@ -1,8 +1,8 @@
-import { state, loadGame, saveGame, calcStats, gainXP } from './state.js';
-import { items, bosses, consumables } from './data.js';
-import * as Battle from './battle.js';
-import * as UI from './ui.js';
-import { rarityColor, itemBonusText, todayStr, playSound, SLOT_LABELS } from './utils.js';
+import { state, loadGame, saveGame, calcStats, gainXP } from './js/state.js';
+import { items, bosses, consumables } from './js/data.js';
+import * as Battle from './js/battle.js';
+import * as UI from './js/ui.js';
+import { rarityColor, itemBonusText, todayStr, playSound, SLOT_LABELS } from './js/utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     loadGame();
