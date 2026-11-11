@@ -77,23 +77,27 @@ document.addEventListener('DOMContentLoaded', () => {
     window.startBossFight = startBossFight;
 
     // ============================================================
-    // УНИВЕРСАЛЬНЫЙ SETUP БОЯ (новый интерфейс)
+    // УНИВЕРСАЛЬНЫЙ SETUP БОЯ
     // ============================================================
     window.setupBattleUI = (boss, overrides = {}) => {
-        // Заполняем новый боевой интерфейс
         UI.renderBattleUI(boss, Battle.battleState.isTower);
+
+        // КРИТИЧНО: вешаем обработчики на кнопки скиллов
+        document.querySelectorAll('.skill-btn').forEach(btn => {
+            btn.onclick = () => {
+                const action = btn.dataset.action || btn.dataset.skill;
+                if (action) window.playerAction(action);
+            };
+        });
 
         window.battleUI = {
             onHit: (dmg, isCrit, label) => {
-                Battle.battleState.totalDamage += 0; // уже учтено в doAttack
                 UI.updateBattleHP();
                 document.getElementById('battle-log').innerHTML +=
                     `<div>${label}: ${dmg.toFixed(0)} ${isCrit ? '<span class="crit">(КРИТ!)</span>' : ''}</div>`;
 
-                // Попап урона над боссом
                 spawnDamagePopup('bt-damage-popups-boss', dmg, isCrit);
 
-                // Анимация "hit" на боссе
                 const bossImg = document.getElementById('bt-boss-img');
                 bossImg.classList.remove('hit');
                 void bossImg.offsetWidth;
@@ -124,7 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
             onWin: overrides.onWin || (() => {
                 Battle.stopBattleTimer();
 
-                // Награды
                 const goldReward = boss.reward.gold || 0;
                 const silverReward = boss.reward.silver || 0;
                 const xpReward = boss.reward.xp || 0;
@@ -135,7 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!state.defeatedBosses.includes(boss.id)) state.defeatedBosses.push(boss.id);
                 saveGame(); UI.updateHUD();
 
-                // Показываем модалку победы
                 UI.showVictoryModal({
                     gold: goldReward,
                     stars: xpReward > 0 ? Math.round(xpReward * 0.99) : 1980,
@@ -160,6 +162,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 600);
             })
         };
+
+        // После setup — синхронизируем кнопки с текущими кулдаунами
+        UI.updateSkillCooldowns();
     };
 
     function scrollLog() {
@@ -191,7 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ============================================================
-    // ДЕЙСТВИЯ ИГРОКА (новые кнопки)
+    // ДЕЙСТВИЯ ИГРОКА
     // ============================================================
     window.playerAction = (action) => {
         if (!Battle.battleState.active) return;
@@ -243,13 +248,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             }
             case 'ok': {
-                // ОК = обычная атака (подтверждение)
                 if (!Battle.isSkillReady('attack')) return;
                 Battle.startCooldown('attack');
                 Battle.doAttack(1, 'АТАКА', window.battleUI);
                 break;
             }
         }
+
+        // Обновляем визуал кулдаунов после любого действия
+        UI.updateSkillCooldowns();
     };
 
     // ============================================================
@@ -269,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.closeVictoryModal = () => UI.closeVictoryModal();
 
-    // Повторить бой (из модалки победы)
+    // Повторить бой — перезапуск с тем же боссом
     window.repeatBattle = () => {
         document.getElementById('victory-modal').classList.add('hidden');
         const boss = Battle.battleState.currentBoss;

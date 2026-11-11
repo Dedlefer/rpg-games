@@ -477,7 +477,7 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 .tower-boss-row span { color: var(--muted); }
 .tower-fight-btn { margin-top: auto; font-size: 18px; padding: 14px; }
 
-/* ============ ОБЩИЕ КНОПКИ ДЕЙСТВИЙ (для башни/прочего) ============ */
+/* ============ ОБЩИЕ КНОПКИ ДЕЙСТВИЙ ============ */
 .action-btn {
     padding: 12px 24px;
     background: linear-gradient(to bottom, #555, #222);
@@ -573,7 +573,7 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
     border-radius: 9px 0 0 9px;
 }
 .bt-hp .bt-fill { background: linear-gradient(90deg, #8b0000, #e94560, #ff5c78); }
-.bt-mana .bt-fill { background: linear-gradient(90deg, #0d47a1, #2196f3, #64b5f6); }
+.bt-mana .bt-fill { background: linear-gradient(90deg, #0d47a1, var(--rare), #64b5f6); }
 .bt-text {
     position: absolute;
     inset: 0;
@@ -605,6 +605,7 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
     font-variant-numeric: tabular-nums;
     letter-spacing: 2px;
     text-shadow: 0 0 8px rgba(245,197,24,0.6);
+    font-family: 'Roboto Condensed', sans-serif;
 }
 
 .bt-close {
@@ -733,11 +734,12 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
     gap: 18px;
 }
 
+/* Кнопки скиллов — как .action-btn: linear-gradient + золотая рамка при наведении */
 .skill-btn {
     width: 76px;
     height: 76px;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #3a4b55, #0a1014);
+    background: linear-gradient(to bottom, #555, #222);
     border: 3px solid var(--panel-border);
     box-shadow: 0 5px 12px rgba(0,0,0,0.6), inset 0 0 10px rgba(0,0,0,0.6);
     display: flex;
@@ -752,7 +754,13 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 }
 .skill-btn:hover { transform: translateY(-4px); border-color: var(--gold); }
 .skill-btn:active { transform: translateY(0); }
-.skill-btn.on-cooldown { opacity: 0.55; filter: grayscale(0.6); cursor: not-allowed; }
+.skill-btn:disabled,
+.skill-btn.on-cooldown {
+    opacity: 0.55;
+    filter: grayscale(0.6);
+    cursor: not-allowed;
+    transform: none;
+}
 
 .skill-icon { font-size: 30px; line-height: 1; }
 
@@ -766,28 +774,20 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
     letter-spacing: .5px;
 }
 
-/* Синяя полоска кулдауна/маны на кнопке */
+/* Полоска кулдауна (синяя, как мана) — шириной управляет JS */
 .skill-cd {
     position: absolute;
-    bottom: 4px;
+    bottom: 6px;
     left: 50%;
     transform: translateX(-50%);
-    width: 60%;
+    width: 0%;
     height: 5px;
     border-radius: 3px;
-    background: rgba(33, 150, 243, 0.15);
-    overflow: hidden;
+    background: linear-gradient(90deg, #0d47a1, var(--rare));
+    opacity: 0.85;
+    transition: width .08s linear;
+    pointer-events: none;
 }
-.skill-cd::after {
-    content: '';
-    display: block;
-    height: 100%;
-    width: 100%;
-    background: linear-gradient(90deg, #0d47a1, #2196f3);
-    border-radius: 3px;
-    transition: width .2s linear;
-}
-.skill-btn.on-cooldown .skill-cd::after { width: 100%; background: #444; }
 
 .skill-potion .skill-badge {
     position: absolute;
@@ -882,7 +882,7 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 
 .victory-center {
     flex: 1.4;
-    background: linear-gradient(135deg, #1a2630, #0a1014);
+    background: #141c22;
     border: 3px solid var(--gold);
     border-radius: 18px;
     padding: 25px 30px;
@@ -905,10 +905,10 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 }
 .victory-repeat {
     padding: 8px 24px;
-    background: linear-gradient(to bottom, #f5a623, #c46a00);
+    background: linear-gradient(to bottom, var(--gold), #c46a00);
     border: 2px solid #fff;
     border-radius: 10px;
-    color: #fff;
+    color: #111;
     font-weight: bold;
     font-size: 14px;
     text-transform: uppercase;
@@ -978,7 +978,7 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
 .victory-ok:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(76,175,80,0.7); }
 
 /* ============================================================
-   ОСТАЛЬНЫЕ МОДАЛКИ (без изменений)
+   ОСТАЛЬНЫЕ МОДАЛКИ
    ============================================================ */
 .modal {
     position: fixed; inset: 0;
@@ -1186,10 +1186,8 @@ h2 { color: var(--gold); font-size: 16px; border-bottom: 1px solid var(--panel-b
     .bt-timer-wrap { order: -1; flex-basis: 100%; flex-direction: row; justify-content: center; padding: 4px 14px; }
     .bt-timer { font-size: 18px; }
     .bs-hero, .bs-boss { width: 42%; }
-    .quick-slots { left: 5px; gap: 8px; }
-    .quick-slot { width: 44px; height: 44px; }
-    .quick-slot .qs-icon { font-size: 20px; }
-    .skill-btn { width: 60px; height: 60px; }
+    .quick-slots { display: none; }
+    .skill-btn { width: 58px; height: 58px; }
     .skill-icon { font-size: 22px; }
     .skill-label { font-size: 8px; }
     .ok-btn { padding: 10px 16px; font-size: 14px; }

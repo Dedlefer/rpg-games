@@ -254,10 +254,10 @@ export function renderModalItems(type) {
 }
 
 /* ============================================================
-   НОВЫЕ ФУНКЦИИ ДЛЯ БОЕВОГО ЭКРАНА
+   БОЕВОЙ ЭКРАН
    ============================================================ */
 
-// Заполняет новый боевой интерфейс данными
+// Заполняет боевой интерфейс данными
 export function renderBattleUI(boss, isTower = false) {
     const hero = state.hero;
 
@@ -284,23 +284,24 @@ export function renderBattleUI(boss, isTower = false) {
     heroImg.src = 'images/hero_full.png';
 
     document.getElementById('battle-log').innerHTML = '';
-    document.getElementById('bt-potion-count').textContent = '3';
+    const potionCountEl = document.getElementById('skill-potion-count');
+    if (potionCountEl) potionCountEl.textContent = '3';
 
     document.getElementById('bt-timer').textContent = '00:00:00';
 
-    // Очистка кулдаунов
-    ['attack', 'heavy', 'defend', 'potion'].forEach(s => {
-        const btn = document.querySelector(`.skill-btn[data-skill="${s}"]`);
-        const cd = document.getElementById(`cd-${s}`);
-        if (btn) btn.classList.remove('on-cooldown');
-        if (cd) cd.style.width = '100%';
+    // Сброс визуала кулдаунов
+    document.querySelectorAll('.skill-btn').forEach(btn => {
+        btn.classList.remove('on-cooldown');
+        btn.disabled = false;
+        const bar = btn.querySelector('.skill-cd');
+        if (bar) bar.style.width = '0%';
     });
 
-    // Быстрые слоты (зелья) слева
     renderQuickSlots();
+    updateSkillCooldowns();
 }
 
-// Обновляет HP-бары и цифры в новом бою
+// Обновляет HP-бары и цифры
 export function updateBattleHP() {
     const hero = state.hero;
     const bs = window.Battle && window.Battle.battleState
@@ -320,8 +321,35 @@ export function updateBattleHP() {
         document.getElementById('bt-boss-max-hp').textContent = bossMax;
         document.getElementById('bt-boss-hp-fill').style.width =
             Math.max(0, Math.min(100, (bossHp / bossMax) * 100)) + '%';
-        document.getElementById('bt-potion-count').textContent = bs.potions;
+        const potionCountEl = document.getElementById('skill-potion-count');
+        if (potionCountEl) potionCountEl.textContent = bs.potions;
     }
+}
+
+/**
+ * Обновляет состояние кнопок скиллов и полосок кулдауна.
+ * Блокирует кнопку (disabled) и подсвечивает .on-cooldown,
+ * пока Battle.isSkillReady(action) === false.
+ */
+export function updateSkillCooldowns() {
+    document.querySelectorAll('.skill-btn').forEach(btn => {
+        const action = btn.dataset.action || btn.dataset.skill;
+        if (!action) return;
+
+        const ready = window.Battle
+            ? window.Battle.isSkillReady(action)
+            : true;
+
+        const progress = window.Battle
+            ? window.Battle.getCooldownProgress(action)
+            : 0;
+
+        const bar = btn.querySelector('.skill-cd');
+        if (bar) bar.style.width = (progress * 100) + '%';
+
+        btn.disabled = !ready;
+        btn.classList.toggle('on-cooldown', !ready);
+    });
 }
 
 // Рендер левой панели быстрых слотов (зелья)
@@ -336,7 +364,7 @@ export function renderQuickSlots() {
         { icon: '🔮', key: 'orb',    count: (state.hero.consumables && state.hero.consumables.orb) || 0,    label: 'Сфера' }
     ];
 
-    slots.forEach((s, i) => {
+    slots.forEach((s) => {
         const div = document.createElement('div');
         div.className = 'quick-slot';
         div.title = s.label;
@@ -416,10 +444,8 @@ export function closeVictoryModal() {
     const modal = document.getElementById('victory-modal');
     if (modal) modal.classList.add('hidden');
 
-    // Останавливаем таймер
     if (window.Battle) window.Battle.clearBattleTimers();
 
-    // Возврат на карту / башню
     if (window.Battle && window.Battle.battleState.isTower) {
         goToScreen('tower-screen');
         if (window.renderTower) window.renderTower();

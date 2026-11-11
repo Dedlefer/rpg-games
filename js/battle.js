@@ -16,7 +16,7 @@ export const battleState = {
     // Таймер боя
     startTime: 0,
     timerInterval: null,
-    // Кулдауны скиллов (в секундах)
+    // Кулдауны скиллов — храним TIMESTAMP окончания (мс)
     cooldowns: {
         attack: 0,
         heavy: 0,
@@ -50,7 +50,7 @@ export function beginBattle(boss, isTower = false) {
     battleState.totalDamage = 0;
     state.hero.hp = s.maxHp;
 
-    // Сброс и запуск таймера
+    // Сброс таймера и кулдаунов
     battleState.startTime = Date.now();
     battleState.cooldowns = { attack: 0, heavy: 0, defend: 0, potion: 0 };
     clearBattleTimers();
@@ -88,38 +88,51 @@ export function formatDuration(ms) {
     return `${h}:${m}:${s}`;
 }
 
+/**
+ * Запуск кулдауна скилла.
+ * cooldowns[skill] = timestamp окончания (мс).
+ * Полоска .skill-cd плавно уменьшается от 100% до 0%.
+ */
 export function startCooldown(skill) {
     const base = battleState.baseCooldowns[skill];
     if (!base) return;
-    battleState.cooldowns[skill] = base;
+    const endTime = Date.now() + base * 1000;
+    battleState.cooldowns[skill] = endTime;
 
-    const btn = document.querySelector(`.skill-btn[data-skill="${skill}"]`);
-    const cdBar = document.getElementById(`cd-${skill}`);
+    const btn = document.querySelector(`.skill-btn[data-action="${skill}"]`);
+    const bar = document.getElementById(`cd-${skill}`);
     if (btn) btn.classList.add('on-cooldown');
 
-    const start = Date.now();
     const interval = setInterval(() => {
-        const elapsed = (Date.now() - start) / 1000;
-        const remaining = Math.max(0, base - elapsed);
-        battleState.cooldowns[skill] = remaining;
-
-        if (cdBar) {
-            const pct = Math.max(0, (remaining / base) * 100);
-            cdBar.style.width = pct + '%';
-        }
+        const remaining = Math.max(0, endTime - Date.now());
+        if (bar) bar.style.width = ((remaining / (base * 1000)) * 100) + '%';
 
         if (remaining <= 0) {
             clearInterval(interval);
             if (btn) btn.classList.remove('on-cooldown');
-            if (cdBar) cdBar.style.width = '0%';
+            if (bar) bar.style.width = '0%';
             battleState.cooldowns[skill] = 0;
         }
-    }, 100);
+    }, 50);
     battleState.cdIntervals.push(interval);
 }
 
+/**
+ * Готов ли скилл: true, если Date.now() >= timestamp окончания.
+ */
 export function isSkillReady(skill) {
-    return (battleState.cooldowns[skill] || 0) <= 0;
+    return Date.now() >= (battleState.cooldowns[skill] || 0);
+}
+
+/**
+ * Прогресс кулдауна 0..1 (1 = только запущен, 0 = готов).
+ * Используется UI.updateSkillCooldowns() для отрисовки полоски.
+ */
+export function getCooldownProgress(skill) {
+    const end = battleState.cooldowns[skill] || 0;
+    const base = battleState.baseCooldowns[skill] || 1;
+    if (Date.now() >= end) return 0;
+    return Math.max(0, Math.min(1, (end - Date.now()) / (base * 1000)));
 }
 
 export function doAttack(multiplier, label, uiCallback) {

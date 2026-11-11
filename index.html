@@ -343,25 +343,25 @@
     <!-- Нижняя панель скиллов -->
     <div class="battle-skillbar">
         <div class="skill-row" id="skill-row">
-            <button class="skill-btn" data-skill="attack" onclick="playerAction('attack')">
+            <button class="skill-btn" data-action="attack" data-skill="attack">
                 <div class="skill-icon">⚔️</div>
                 <div class="skill-cd" id="cd-attack"></div>
                 <div class="skill-label">АТАКА</div>
             </button>
-            <button class="skill-btn" data-skill="heavy" onclick="playerAction('heavy')">
+            <button class="skill-btn" data-action="heavy" data-skill="heavy">
                 <div class="skill-icon">💥</div>
                 <div class="skill-cd" id="cd-heavy"></div>
                 <div class="skill-label">ТЯЖЁЛЫЙ</div>
             </button>
-            <button class="skill-btn" data-skill="defend" onclick="playerAction('defend')">
+            <button class="skill-btn" data-action="defend" data-skill="defend">
                 <div class="skill-icon">🛡️</div>
                 <div class="skill-cd" id="cd-defend"></div>
                 <div class="skill-label">ЗАЩИТА</div>
             </button>
-            <button class="skill-btn skill-potion" data-skill="potion" onclick="playerAction('potion')">
+            <button class="skill-btn skill-potion" id="skill-potion" data-action="potion" data-skill="potion">
                 <div class="skill-icon">🧪</div>
                 <div class="skill-cd" id="cd-potion"></div>
-                <div class="skill-badge" id="bt-potion-count">3</div>
+                <div class="skill-badge" id="skill-potion-count">3</div>
                 <div class="skill-label">ЗЕЛЬЕ</div>
             </button>
         </div>
@@ -389,7 +389,7 @@
             <div class="victory-dmg-label">ТВОЙ УРОН:</div>
             <div class="victory-dmg-value" id="victory-dmg">0</div>
 
-            <button class="victory-ok" onclick="closeVictoryModal()">СОБРАТЬ ТРОФЕИ!</button>
+            <button class="victory-ok" onclick="window.closeVictoryModal()">СОБРАТЬ ТРОФЕИ!</button>
         </div>
 
         <div class="victory-side victory-side-right">
