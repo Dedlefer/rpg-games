@@ -2,7 +2,6 @@ import { state, calcStats, saveGame } from './state.js';
 import { items as itemData, consumables as consData, achievements as achData, bosses as bossData } from './data.js';
 import { itemBonusText, rarityColor, todayStr, playSound, SLOT_LABELS } from './utils.js';
 
-// Глобальные ссылки для state.js
 window.itemsData = itemData;
 
 export function updateHUD() {
@@ -50,14 +49,12 @@ export function renderEquipment() {
     });
 }
 
-// Функция переключения экранов
 export function goToScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
     playSound('click');
 }
 
-// Модалка Профиля
 export function openProfileModal(tab) {
     document.getElementById('profile-modal').classList.remove('hidden');
     switchProfileTab(tab);
@@ -73,7 +70,6 @@ export function switchProfileTab(tabId) {
     if (tabId === 'achievements') renderAchievements();
 }
 
-// Логика Талантов
 function getTalentPrice(id, lvl) {
     if (id === 'heal') return { gold: Math.floor(5 * Math.pow(1.5, lvl - 1)), silver: 0 };
     const basePrice = { hp: 10, dmg: 15, def: 20, crit: 20 };
@@ -115,7 +111,6 @@ export function upgradeTalent(id) {
     playSound('crit');
 }
 
-// Рендер Достижений
 export function renderAchievements() {
     const grid = document.getElementById('ach-grid');
     grid.innerHTML = '';
@@ -132,7 +127,6 @@ export function renderAchievements() {
     });
 }
 
-// Карта
 export function renderBosses() {
     const list = document.getElementById('boss-list');
     list.innerHTML = '';
@@ -160,7 +154,6 @@ export function renderBosses() {
     });
 }
 
-// Магазин
 export function renderShop() {
     const tabs = document.querySelectorAll('.shop-tab');
     let currentType = 'weapon';
@@ -169,19 +162,21 @@ export function renderShop() {
     const grid = document.getElementById('shop-grid');
     grid.innerHTML = '';
     
-    document.getElementById('daily-deal').innerHTML = ''; // Убрали товар дня для простоты
+    // Товар дня (просто заглушка)
+    document.getElementById('daily-deal').innerHTML = '';
 
     if (currentType === 'potion') {
         consData.forEach(c => {
             const owned = state.hero.consumables[c.key] || 0;
-            grid.innerHTML += `
-                <div class="shop-item">
-                    <img src="${c.image}" class="item-img" onerror="this.style.display='none'">
-                    <h3>${c.name}</h3>
-                    <div class="price"><img src="images/coin_silver.png" class="price-icon" onerror="this.style.display='none'">${c.price.silver}</div>
-                    <p class="owned-label">В наличии: ${owned}</p>
-                    <button onclick="window.buyConsumable('${c.key}', ${c.price.silver})">КУПИТЬ</button>
-                </div>`;
+            const d = document.createElement('div');
+            d.className = 'shop-item';
+            d.innerHTML = `
+                <img src="${c.image}" class="item-img" onerror="this.style.display='none'">
+                <h3>${c.name}</h3>
+                <div class="price"><img src="images/coin_silver.png" class="price-icon" onerror="this.style.display='none'">${c.price.silver}</div>
+                <p class="owned-label">В наличии: ${owned}</p>
+                <button onclick="window.buyConsumable('${c.key}', ${c.price.silver})">КУПИТЬ</button>`;
+            grid.appendChild(d);
         });
         return;
     }
@@ -189,16 +184,124 @@ export function renderShop() {
     itemData.filter(i => i.type === currentType).forEach(item => {
         const owned = state.hero.inventory.includes(item.id) || state.hero.equipment.includes(item.id);
         const equipped = state.hero.equipment.includes(item.id);
-        grid.innerHTML += `
-            <div class="shop-item ${owned ? 'bought' : ''}" style="border-color:${rarityColor(item.rarity)}">
-                <img src="${item.image}" class="item-img" onerror="this.style.display='none'">
-                <h3>${item.name}</h3>
-                <p>${itemBonusText(item)}</p>
-                <div class="price">
-                    <img src="images/coin_silver.png" class="price-icon" onerror="this.style.display='none'">${item.price.silver}
-                    <img src="images/coin_gold.png" class="price-icon" onerror="this.style.display='none'">${item.price.gold}
-                </div>
-                ${owned ? `<div class="owned-label">${equipped ? 'НАДЕТО' : 'КУПЛЕНО'}</div>` : `<button onclick="window.buyItem('${item.id}')">КУПИТЬ</button>`}
-            </div>`;
+        const d = document.createElement('div');
+        d.className = 'shop-item' + (owned ? ' bought' : '');
+        d.style.borderColor = rarityColor(item.rarity);
+        d.innerHTML = `
+            <img src="${item.image}" class="item-img" onerror="this.style.display='none'">
+            <h3>${item.name}</h3>
+            <p>${itemBonusText(item)}</p>
+            <div class="price">
+                <img src="images/coin_silver.png" class="price-icon" onerror="this.style.display='none'">${item.price.silver}
+                <img src="images/coin_gold.png" class="price-icon" onerror="this.style.display='none'">${item.price.gold}
+            </div>
+            ${owned
+                ? `<div class="owned-label">${equipped ? 'НАДЕТО' : 'В СУМКЕ'}</div>`
+                : `<button onclick="window.buyItem('${item.id}')">КУПИТЬ</button>`}`;
+        grid.appendChild(d);
+    });
+}
+
+// ИНВЕНТАРЬ
+export function renderInventory() {
+    const currentTab = document.querySelector('.inv-tab.active').dataset.tab;
+    const grid = document.getElementById('inventory-grid');
+    const empty = document.getElementById('inventory-empty');
+    grid.innerHTML = '';
+
+    if (currentTab === 'equipment') {
+        if (state.hero.inventory.length === 0) { empty.classList.remove('hidden'); return; }
+        empty.classList.add('hidden');
+        state.hero.inventory.forEach(id => {
+            const it = itemData.find(i => i.id === id); if (!it) return;
+            const d = document.createElement('div');
+            d.className = 'inventory-item';
+            d.style.borderColor = rarityColor(it.rarity);
+            d.innerHTML = `
+                <img src="${it.image}" class="item-img" onerror="this.style.display='none'">
+                <h3>${it.name}</h3>
+                <p class="item-type">${SLOT_LABELS[it.type]}</p>
+                <p>${itemBonusText(it)}</p>
+                <button onclick="window.equipItem('${it.id}')">НАДЕТЬ</button>
+                <button class="sell-btn" onclick="window.sellItem('${it.id}')">ПРОДАТЬ</button>`;
+            grid.appendChild(d);
+        });
+    } else if (currentTab === 'consumable') {
+        empty.classList.add('hidden');
+        Object.entries(state.hero.consumables).forEach(([key, count]) => {
+            if (!count) return;
+            const c = consData.find(x => x.key === key);
+            if (!c) return;
+            const d = document.createElement('div');
+            d.className = 'inventory-item';
+            d.innerHTML = `
+                <img src="${c.image}" class="item-img" onerror="this.style.display='none'">
+                <h3>${c.name}</h3>
+                <p>В наличии: <b>${count}</b></p>`;
+            grid.appendChild(d);
+        });
+    } else if (currentTab === 'keys') {
+        empty.classList.add('hidden');
+        const d = document.createElement('div');
+        d.className = 'inventory-item';
+        d.innerHTML = `
+            <img src="images/key.png" class="item-img" onerror="this.style.display='none'">
+            <h3>Ключи: ${state.hero.keys}</h3>
+            <p>3 ключа = 1 предмет</p>
+            <button onclick="window.openChest()" ${state.hero.keys < 3 ? 'disabled' : ''}>ОТКРЫТЬ</button>`;
+        grid.appendChild(d);
+    }
+}
+
+// Модалка выбора предмета для слота
+export function openEquipModal(type) {
+    document.getElementById('equip-modal').classList.remove('hidden');
+    document.getElementById('modal-slot-name').textContent = SLOT_LABELS[type] || type.toUpperCase();
+    renderModalItems(type);
+}
+
+export function renderModalItems(type) {
+    const box = document.getElementById('modal-items');
+    box.innerHTML = '';
+    
+    // Надетый предмет
+    const equippedId = state.hero.equipment.find(id => {
+        const it = itemData.find(i => i.id === id); return it && it.type === type;
+    });
+    
+    if (equippedId) {
+        const it = itemData.find(i => i.id === equippedId);
+        const d = document.createElement('div');
+        d.className = 'modal-item';
+        d.style.borderColor = rarityColor(it.rarity);
+        d.innerHTML = `
+            <img src="${it.image}" class="item-img" onerror="this.style.display='none'">
+            <h3>${it.name}</h3>
+            <p>${itemBonusText(it)}</p>
+            <button onclick="window.unequipItem('${type}')">СНЯТЬ</button>`;
+        box.appendChild(d);
+    }
+
+    // Доступные предметы из инвентаря
+    const available = state.hero.inventory.filter(id => {
+        const it = itemData.find(i => i.id === id); return it && it.type === type;
+    });
+    
+    if (!equippedId && available.length === 0) {
+        box.innerHTML += '<p style="color:#666; text-align:center; width:100%;">Нет предметов этого типа</p>';
+        return;
+    }
+    
+    available.forEach(id => {
+        const it = itemData.find(i => i.id === id);
+        const d = document.createElement('div');
+        d.className = 'modal-item';
+        d.style.borderColor = rarityColor(it.rarity);
+        d.innerHTML = `
+            <img src="${it.image}" class="item-img" onerror="this.style.display='none'">
+            <h3>${it.name}</h3>
+            <p>${itemBonusText(it)}</p>
+            <button onclick="window.equipItem('${id}')">НАДЕТЬ</button>`;
+        box.appendChild(d);
     });
 }

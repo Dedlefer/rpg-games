@@ -234,7 +234,6 @@
         <button class="back-btn" onclick="goToScreen('main-screen')">НАЗАД</button>
     </div>
     <div class="map-container">
-        <div class="map-bg"></div>
         <div id="daily-boss-banner"></div>
         <div id="boss-list" class="boss-nodes"></div>
     </div>
@@ -343,18 +342,6 @@
     </div>
 </div>
 
-<div id="result-modal" class="modal hidden">
-    <div class="modal-content result-content">
-        <h1 id="result-title">ПОБЕДА!</h1>
-        <div id="result-body"></div>
-        <div class="buttons">
-            <button id="result-again" class="action-btn main-action">ЕЩЁ РАЗ</button>
-            <button id="result-map" class="action-btn">НА КАРТУ</button>
-            <button id="result-menu" class="action-btn">В МЕНЮ</button>
-        </div>
-    </div>
-</div>
-
 <div id="save-modal" class="modal hidden">
     <div class="modal-content">
         <h2>СИСТЕМА</h2>
@@ -362,14 +349,6 @@
             <button class="action-btn" onclick="closeModal('save-modal')">ЗАКРЫТЬ</button>
         </div>
     </div>
-</div>
-
-<!-- Debug панель (по желанию) -->
-<div id="debug-panel" class="hidden">
-    <button onclick="dbgAddMoney()">+10000💰</button>
-    <button onclick="dbgAddLevels()">+5 LVL</button>
-    <button onclick="dbgWinBoss()">Убить босса</button>
-    <button onclick="dbgReset()">Сброс</button>
 </div>
 
 <script type="module" src="main.js"></script>
