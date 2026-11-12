@@ -198,67 +198,68 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================================
     // ДЕЙСТВИЯ ИГРОКА
     // ============================================================
-    window.playerAction = (action) => {
-        if (!Battle.battleState.active) return;
-        const lvl = state.hero.talents;
+window.playerAction = (action) => {
+    if (!Battle.battleState.active) return;
+    const lvl = state.hero.talents;
 
-        switch (action) {
+    switch (action) {
 
-            // АТАКА — без КД, спамится сколько угодно
-            case 'attack': {
-                Battle.doAttack(1, 'АТАКА', window.battleUI);
-                break;
-            }
-
-            // СВИРЕПЫЙ УДАР — плоская прибавка 6×(lvl-1), босс отвечает
-            case 'frenzy': {
-                if (!Battle.isSkillReady('frenzy')) return;
-                Battle.startCooldown('frenzy');
-                const bonus = 6 * (lvl.dmg - 1);
-                Battle.doAttackFlat(bonus, 'СВИРЕПЫЙ УДАР', window.battleUI);
-                break;
-            }
-
-            // БЛОК ЩИТОМ — базовый удар, ответ босса минус 2×(lvl-1)
-            case 'shieldblock': {
-                if (!Battle.isSkillReady('shieldblock')) return;
-                Battle.startCooldown('shieldblock');
-                Battle.battleState.bossDamageReduction = 2 * (lvl.def - 1);
-                Battle.doAttack(1, 'БЛОК ЩИТОМ', window.battleUI);
-                break;
-            }
-
-            // НЕВИДИМЫЙ УДАР — плоская прибавка 8×(lvl-1), босс НЕ отвечает
-            case 'stealth': {
-                if (!Battle.isSkillReady('stealth')) return;
-                Battle.startCooldown('stealth');
-                Battle.battleState.silentStrike = true;
-                const bonus = 8 * (lvl.crit - 1);
-                Battle.doAttackFlat(bonus, 'НЕВИДИМЫЙ УДАР', window.battleUI);
-                break;
-            }
-
-            // ЗЕЛЬЕ — из левой панели, хил 250 + 5×(lvl-1), босс отвечает
-            case 'potion': {
-                if (!Battle.isSkillReady('potion')) return;
-                const bs = Battle.battleState;
-                if (bs.potions <= 0) {
-                    window.battleUI.onLog('<span class="lose">Зелья закончились!</span>');
-                    return;
-                }
-                Battle.startCooldown('potion');
-                const heal = 250 + 5 * (lvl.heal - 1);
-                state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + heal);
-                bs.potions--;
-                UI.updateBattleHP();
-                window.battleUI.onLog(`<span class="win">Зелье: +${heal} HP</span>`);
-                playSound('heal');
-                Battle.bossTurn(window.battleUI);
-                break;
-            }
+        // АТАКА — без КД, спамится сколько угодно
+        case 'attack': {
+            Battle.doAttack(1, 'АТАКА', window.battleUI);
+            break;
         }
-        UI.updateSkillCooldowns();
-    };
+
+        // СВИРЕПЫЙ УДАР — плоская прибавка 6×(lvl-1), босс отвечает
+        case 'frenzy': {
+            if (!Battle.isSkillReady('frenzy')) return;
+            Battle.startCooldown('frenzy');
+            const bonus = 6 * (lvl.dmg - 1);
+            Battle.doAttackFlat(bonus, 'СВИРЕПЫЙ УДАР', window.battleUI);
+            break;
+        }
+
+        // БЛОК ЩИТОМ — базовый удар, ответ босса минус 2×(lvl-1)
+        case 'shieldblock': {
+            if (!Battle.isSkillReady('shieldblock')) return;
+            Battle.startCooldown('shieldblock');
+            Battle.battleState.bossDamageReduction = 2 * (lvl.def - 1);
+            Battle.doAttack(1, 'БЛОК ЩИТОМ', window.battleUI);
+            break;
+        }
+
+        // НЕВИДИМЫЙ УДАР — плоская прибавка 8×(lvl-1), босс НЕ отвечает
+        case 'stealth': {
+            if (!Battle.isSkillReady('stealth')) return;
+            Battle.startCooldown('stealth');
+            Battle.battleState.silentStrike = true;
+            const bonus = 8 * (lvl.crit - 1);
+            Battle.doAttackFlat(bonus, 'НЕВИДИМЫЙ УДАР', window.battleUI);
+            break;
+        }
+
+        // ЗЕЛЬЕ — из левой панели, хил 250 + 5×(lvl-1)
+        case 'potion': {
+            if (!Battle.isSkillReady('potion')) return;
+            const bs = Battle.battleState;
+            if (bs.potions <= 0) {
+                window.battleUI.onLog('<span class="lose">Зелья закончились!</span>');
+                return;
+            }
+            Battle.startCooldown('potion');
+            const heal = 250 + 5 * (lvl.heal - 1);
+            state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + heal);
+            bs.potions--;
+            UI.updateBattleHP();
+            window.battleUI.onLog(`<span class="win">Зелье: +${heal} HP</span>`);
+            playSound('heal');
+            Battle.bossTurn(window.battleUI);
+            break;
+        }
+    }
+
+    UI.updateSkillCooldowns();
+};
 
     // ============================================================
     // ПОБЕГ / ЗАВЕРШЕНИЕ
