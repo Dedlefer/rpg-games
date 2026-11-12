@@ -1,0 +1,23 @@
+/* ============ ЭКРАНЫ И ФОНЫ ============ */
+.screen {
+    display: none;
+    width: 100vw;
+    height: 100vh;
+    padding: 10px;
+    position: relative;
+    opacity: 0;
+    transition: opacity .3s;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: var(--bg);
+    background-image: radial-gradient(circle at center, #1a2630 0%, #0a1014 100%);
+}
+#main-screen { background-image: url('../../images/bg_base.png'), radial-gradient(circle at center, #1a2630 0%, #0a1014 100%); }
+#map-screen { background-color: #0d1418; }
+#shop-screen { background-image: url('../../images/bg_base.png'), radial-gradient(circle at center, #1a2630 0%, #0a1014 100%); }
+#inventory-screen { background-image: url('../../images/bg_base.png'), radial-gradient(circle at center, #1a2630 0%, #0a1014 100%); }
+#tower-screen { background-image: url('../../images/bg_base.png'), radial-gradient(circle at center, #1a2630 0%, #0a1014 100%); }
+#battle-screen { background-image: url('../../images/bg_battle.png'), radial-gradient(circle at center, #2a1020 0%, #0a0505 100%); }
+
+.screen.active { display: flex; flex-direction: column; opacity: 1; }

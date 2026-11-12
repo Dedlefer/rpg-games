@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap');
+
+:root {
+    --bg: #0a1014;
+    --panel: #141c22;
+    --panel-border: #3a4b55;
+    --accent: #e94560;
+    --gold: #f5c518;
+    --hp: #4caf50;
+    --text: #e0e6ed;
+    --muted: #8a9ba8;
+    --rare: #3b82f6;
+    --epic: #a855f7;
+    --legendary: #f59e0b;
+}

@@ -214,24 +214,11 @@ export function bossTurn(uiCallback) {
     const boss = battleState.currentBoss;
     if (!boss || battleState.bossHp <= 0) return;
 
-    // Ярость при < 50% HP
-    if (battleState.bossHp < battleState.bossMaxHp * 0.5 && !battleState.bossEnraged) {
-        battleState.bossEnraged = true;
-        uiCallback.onLog('<span class="crit">БОСС В ЯРОСТИ!</span>');
-    }
-
     let bossDmg = boss.damage;
-    if (battleState.bossEnraged) bossDmg *= 1.5;
 
     // Плоское снижение от «Блока щитом»
-    bossDmg = bossDmg - battleState.bossDamageReduction;
-    
-    // Если блок поглотил весь урон (или урон ушел в минус) — босс бьет на 0
-    if (bossDmg < 0) {
-        bossDmg = 0;
-    }
-    
-    battleState.bossDamageReduction = 0; // сбрасываем блок
+    bossDmg = Math.max(0, bossDmg - battleState.bossDamageReduction); // <-- Заодно убрали минимум 1 урон
+    battleState.bossDamageReduction = 0;
 
     state.hero.hp = Math.max(0, state.hero.hp - bossDmg);
     uiCallback.onBossHit(bossDmg);

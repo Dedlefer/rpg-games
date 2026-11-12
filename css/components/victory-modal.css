@@ -1,0 +1,151 @@
+/* ============================================================
+   МОДАЛКА ПОБЕДЫ
+   ============================================================ */
+#victory-modal {
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(6px);
+}
+
+.victory-content {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 15px;
+    max-width: 1100px;
+    width: 95vw;
+    max-height: 90vh;
+}
+
+.victory-side {
+    flex: 1;
+    background: linear-gradient(135deg, #141c22, #0a1014);
+    border: 2px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 16px;
+    overflow-y: auto;
+    min-width: 0;
+}
+.victory-side h3 {
+    color: var(--gold);
+    text-align: center;
+    font-size: 14px;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+.rating-list, .trophy-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.rating-list li, .trophy-list li {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+}
+.rating-list li b, .trophy-list li b { color: var(--gold); }
+
+.victory-center {
+    flex: 1.4;
+    background: #141c22;
+    border: 3px solid var(--gold);
+    border-radius: 18px;
+    padding: 25px 30px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(245,197,24,0.35);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 300px;
+}
+.victory-title {
+    font-size: 26px;
+    color: var(--gold);
+    text-shadow: 0 0 15px rgba(245,197,24,0.7), 0 2px 4px #000;
+    letter-spacing: 2px;
+    margin: 0;
+}
+.victory-repeat {
+    padding: 8px 24px;
+    background: linear-gradient(to bottom, var(--gold), #c46a00);
+    border: 2px solid #fff;
+    border-radius: 10px;
+    color: #111;
+    font-weight: bold;
+    font-size: 14px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+    transition: transform .12s;
+}
+.victory-repeat:hover { transform: translateY(-2px); }
+
+.victory-trophies {
+    display: flex;
+    gap: 18px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+.vt-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0,0,0,0.4);
+    border: 2px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 10px 16px;
+    min-width: 80px;
+}
+.vt-item .vt-icon {
+    width: 44px; height: 44px;
+    display: flex; justify-content: center; align-items: center;
+    font-size: 26px;
+}
+.vt-item .vt-icon img { width: 100%; height: 100%; object-fit: contain; }
+.vt-item .vt-amount { color: var(--gold); font-weight: bold; font-size: 16px; }
+.vt-item .vt-label { color: var(--muted); font-size: 11px; }
+
+.victory-dmg-label {
+    color: var(--muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 6px;
+}
+.victory-dmg-value {
+    font-size: 46px;
+    font-weight: bold;
+    color: #ff5c78;
+    text-shadow: 0 0 15px rgba(233,69,96,0.7), 0 2px 4px #000;
+    line-height: 1;
+}
+
+.victory-ok {
+    margin-top: 8px;
+    padding: 14px 36px;
+    background: linear-gradient(to bottom, #2e7d32, #1b5e20);
+    border: 2px solid var(--hp);
+    border-radius: 12px;
+    color: #fff;
+    font-weight: bold;
+    font-size: 17px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(76,175,80,0.5);
+    transition: all .15s;
+}
+.victory-ok:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(76,175,80,0.7); }

@@ -1,0 +1,28 @@
+/* ============ АДАПТИВ ============ */
+@media (max-width: 900px) {
+    #left-panel, #right-panel { display: none; }
+    .shop-layout { flex-direction: column; }
+    #shop-tabs { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    .profile-tabs { position: relative; left: 0; flex-direction: row; justify-content: center; top: 0; margin-bottom: 10px; }
+    .profile-tab { border-radius: 8px 8px 0 0; border-right: 2px solid #c7a86b; border-bottom: none; width: auto; text-align: center; }
+    .profile-content { height: 80vh; }
+    .top-center { flex-wrap: wrap; padding: 5px 15px; gap: 15px; }
+    .currency-block { font-size: 16px; }
+    .currency-block img { width: 24px; height: 24px; }
+    .tower-layout { grid-template-columns: 1fr; }
+    .bm-header { flex-direction: column; text-align: center; }
+    .bm-title-block h2 { text-align: center; }
+
+    .battle-topbar { flex-wrap: wrap; padding: 8px 50px 8px 10px; gap: 8px; }
+    .bt-hero, .bt-boss { max-width: 100%; flex: 1 1 40%; }
+    .bt-timer-wrap { order: -1; flex-basis: 100%; flex-direction: row; justify-content: center; padding: 4px 14px; }
+    .bt-timer { font-size: 18px; }
+    .bs-hero, .bs-boss { width: 42%; }
+    .quick-slots { display: none; }
+    .skill-btn { width: 58px; height: 58px; }
+    .skill-icon { font-size: 22px; }
+    .skill-label { font-size: 8px; }
+    .ok-btn { padding: 10px 16px; font-size: 14px; }
+    .victory-content { flex-direction: column; overflow-y: auto; }
+    .victory-side { max-height: 140px; }
+}

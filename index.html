@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Мембрана: Ярус</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="css/main.css">
 </head>
 <body>
 
@@ -17,14 +17,15 @@
                 <img src="images/hero_avatar.png" alt="Герой" onerror="this.src='https://via.placeholder.com/60/2a2a40/fff?text=H'">
                 <div class="level-badge" id="hero-level">1</div>
             </div>
+
             <div class="hp-xp-bars">
-                <div class="bar-container xp-container">
+                <div class="bar-container xp-container" style="height: 22px;">
                     <div id="hero-xp-bar" class="bar-fill xp-fill"></div>
-                    <span class="bar-text"><span id="hero-xp">0</span> / <span id="hero-xp-to-next">5000</span></span>
+                    <span class="bar-text" style="font-size: 13px;"><span id="hero-xp">0</span> / <span id="hero-xp-to-next">200</span></span>
                 </div>
-                <div class="hero-stats-mini">
-                    <span class="stat-mini"><i class="icon-hp"></i> <span id="hero-hp">200</span></span>
-                    <span class="stat-mini"><i class="icon-dmg"></i> <span id="hero-damage">100</span></span>
+                <div class="hero-stats-mini" style="font-size: 16px; color: #fff; margin-top: 4px;">
+                    <span class="stat-mini"><i class="icon-hp"></i> <span id="hero-hp">50</span></span>
+                    <span class="stat-mini"><i class="icon-dmg"></i> <span id="hero-damage">5</span></span>
                 </div>
             </div>
         </div>
@@ -75,15 +76,7 @@
         <div class="hero-display">
             <img src="images/hero_full.png" alt="Герой" class="hero-main-img" onerror="this.src='https://via.placeholder.com/300x400/1a1a2e/e94560?text=Hero+Model'">
         </div>
-
-        <div id="equip-container">
-            <div class="equip-slot empty" data-slot="helmet" title="Шлем"></div>
-            <div class="equip-slot empty" data-slot="chest" title="Нагрудник"></div>
-            <div class="equip-slot empty" data-slot="legs" title="Поножи"></div>
-            <div class="equip-slot empty" data-slot="boots" title="Ботинки"></div>
-            <div class="equip-slot empty" data-slot="weapon" title="Оружие"></div>
-            <div class="equip-slot empty" data-slot="shield" title="Щит"></div>
-        </div>
+        <!-- Слоты экипировки удалены -->
     </div>
 
     <div id="bottom-nav">
@@ -92,9 +85,9 @@
                 <div class="nav-icon">🛒</div>
                 <span>МАГАЗИН</span>
             </button>
-            <button class="nav-btn" onclick="goToScreen('inventory-screen')">
-                <div class="nav-icon">🎒</div>
-                <span>ИНВЕНТАРЬ</span>
+            <button class="nav-btn" onclick="goToScreen('collections-screen')">
+                <div class="nav-icon">📖</div>
+                <span>КОЛЛЕКЦИИ</span>
             </button>
         </div>
         <div class="nav-group center">
@@ -126,13 +119,9 @@
         </div>
 
         <div class="profile-body">
-            <!-- Вкладка талантов -->
             <div id="tab-talents" class="profile-tab-content active">
                 <h3 class="tab-header">СПОСОБНОСТИ</h3>
-                
-                <!-- Сюда JS будет автоматически вставлять все 5 карточек -->
                 <div class="talents-grid" id="talents-container" style="grid-template-columns: repeat(3, 1fr);"></div>
-
                 <div class="talent-footer">
                     <div class="talent-currency">
                         <img src="images/coin_silver.png" style="width:20px; height:20px; vertical-align:middle; margin-right:5px;" onerror="this.style.display='none'"> 
@@ -197,6 +186,10 @@
             <button class="shop-tab" data-type="legs">ПОНОЖИ</button>
             <button class="shop-tab" data-type="boots">БОТИНКИ</button>
             <button class="shop-tab" data-type="shield">ЩИТЫ</button>
+            <button class="shop-tab" data-type="gloves">ПЕРЧАТКИ</button>
+            <button class="shop-tab" data-type="ring">КОЛЬЦА</button>
+            <button class="shop-tab" data-type="bracer">БРАСЛЕТЫ</button>
+            <button class="shop-tab" data-type="amulet">ОЖЕРЕЛЬЯ</button>
             <button class="shop-tab" data-type="potion">РАСХОДНИКИ</button>
         </div>
         <div class="shop-content">
@@ -206,19 +199,28 @@
     </div>
 </div>
 
-<!-- ================= ИНВЕНТАРЬ ================= -->
-<div id="inventory-screen" class="screen">
+<!-- ================= КОЛЛЕКЦИИ ================= -->
+<div id="collections-screen" class="screen">
     <div class="screen-header">
-        <h1>ИНВЕНТАРЬ</h1>
+        <h1>КОЛЛЕКЦИИ</h1>
         <button class="back-btn" onclick="goToScreen('main-screen')">НАЗАД</button>
     </div>
-    <div class="inv-tabs">
-        <button class="inv-tab active" data-tab="equipment">СНАРЯЖЕНИЕ</button>
-        <button class="inv-tab" data-tab="consumable">РАСХОДНИКИ</button>
-        <button class="inv-tab" data-tab="keys">КЛЮЧИ</button>
+    
+    <div class="collections-layout">
+        <!-- Левое меню категорий -->
+        <div id="collections-tabs">
+            <button class="coll-tab active" data-type="weapon">ОРУЖИЕ</button>
+            <button class="coll-tab" data-type="helmet">ШЛЕМЫ</button>
+            <button class="coll-tab" data-type="chest">БРОНЯ</button>
+            <button class="coll-tab" data-type="gloves">ПЕРЧАТКИ</button>
+            <!-- Добавишь остальные по аналогии -->
+        </div>
+
+        <!-- Сетка коллекций -->
+        <div class="collections-content">
+            <div id="collections-grid"></div>
+        </div>
     </div>
-    <div id="inventory-grid" class="inventory-grid"></div>
-    <div id="inventory-empty" class="empty-note hidden">Пусто. Загляни в магазин.</div>
 </div>
 
 <!-- ================= БАШНЯ ================= -->
@@ -245,13 +247,12 @@
 
 <!-- ================= НОВЫЙ БОЙ ================= -->
 <div id="battle-screen" class="screen">
-    <!-- Верхняя панель боя -->
     <div class="battle-topbar">
         <div class="bt-hero">
             <div class="bt-name" id="bt-hero-name">ГЕРОЙ</div>
             <div class="bt-bar bt-hp">
                 <div class="bt-fill" id="bt-hero-hp-fill"></div>
-                <span class="bt-text"><span id="bt-hero-hp">200</span>/<span id="bt-hero-max-hp">200</span></span>
+                <span class="bt-text"><span id="bt-hero-hp">50</span>/<span id="bt-hero-max-hp">50</span></span>
             </div>
             <div class="bt-bar bt-mana">
                 <div class="bt-fill" id="bt-hero-mana-fill"></div>
@@ -268,14 +269,13 @@
             <div class="bt-name" id="bt-boss-name">БОСС</div>
             <div class="bt-bar bt-hp">
                 <div class="bt-fill" id="bt-boss-hp-fill"></div>
-                <span class="bt-text"><span id="bt-boss-hp">2000</span>/<span id="bt-boss-max-hp">2000</span></span>
+                <span class="bt-text"><span id="bt-boss-hp">30</span>/<span id="bt-boss-max-hp">30</span></span>
             </div>
         </div>
 
         <button class="bt-close" onclick="fleeBattle()" title="Выйти">✖</button>
     </div>
 
-    <!-- Арена -->
     <div class="battle-stage">
         <div class="bs-hero">
             <img src="images/hero_full.png" class="bs-hero-img" id="bt-hero-img"
@@ -289,11 +289,9 @@
             <div id="bt-damage-popups-boss"></div>
         </div>
 
-        <!-- Левая панель быстрых слотов -->
         <div class="quick-slots" id="quick-slots"></div>
     </div>
 
-    <!-- Нижняя панель скиллов -->
     <div class="battle-skillbar">
         <div class="skill-row" id="skill-row">
             <button class="skill-btn" data-action="attack" data-skill="attack">
@@ -319,7 +317,6 @@
         </div>
     </div>
 
-    <!-- Лог боя -->
     <div class="log" id="battle-log"></div>
 </div>
 

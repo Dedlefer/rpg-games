@@ -1,0 +1,125 @@
+/* ============ ИНВЕНТАРЬ ============ */
+.inv-tabs {
+    display: flex; gap: 8px; padding: 0 20px 15px;
+    justify-content: center;
+}
+.inv-tab {
+    padding: 10px 20px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    color: var(--text); font-weight: bold; cursor: pointer;
+    transition: all 0.2s;
+}
+.inv-tab:hover { background: rgba(255,255,255,0.1); }
+.inv-tab.active { background: var(--accent); border-color: var(--gold); color: #fff; }
+
+#inventory-grid {
+    padding: 0 20px 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+.inv-item-img-wrap {
+    width: 72px; height: 72px;
+    display: flex; justify-content: center; align-items: center;
+    background: rgba(0,0,0,0.3); border-radius: 8px; margin-bottom: 6px;
+}
+.item-type { color: var(--gold); font-size: 11px; font-weight: bold; }
+.item-bonus { color: var(--hp); font-size: 12px; margin: 4px 0 8px; }
+.inv-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.inv-actions button { margin: 0; padding: 5px 10px; font-size: 11px; }
+.inv-actions button:disabled { background: #555; cursor: not-allowed; opacity: 0.5; }
+.key-item { border-color: var(--gold) !important; }
+.empty-note {
+    text-align: center; color: var(--muted);
+    font-style: italic; padding: 40px 20px;
+}
+
+/* ============ ЭКРАН КОЛЛЕКЦИЙ ============ */
+.collections-layout {
+    display: flex;
+    flex: 1;
+    gap: 20px;
+    padding: 0 20px 20px;
+}
+#collections-tabs {
+    width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.coll-tab {
+    padding: 12px;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    color: var(--text);
+    text-align: left;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.coll-tab:hover { background: rgba(255,255,255,0.1); }
+.coll-tab.active { background: var(--accent); color: #fff; border-color: var(--gold); }
+
+.collections-content {
+    flex: 1;
+    background: rgba(20,28,34,0.95);
+    border: 2px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* Сетка для одной коллекции */
+.collection-block {
+    margin-bottom: 30px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 20px;
+}
+.collection-title {
+    color: var(--gold);
+    font-size: 18px;
+    margin: 0 0 15px;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.collection-items {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* Слот для частицы */
+.coll-slot {
+    width: 64px;
+    height: 64px;
+    background: rgba(0,0,0,0.6);
+    border: 2px solid #555;
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+}
+.coll-slot.collected {
+    border-color: var(--hp);
+    background: rgba(76,175,80,0.2);
+}
+.coll-slot img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+.coll-slot .part-num {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ccc;
+}

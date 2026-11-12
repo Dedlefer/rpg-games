@@ -2,11 +2,21 @@ import { SAVE_VERSION, items } from './data.js';
 
 export const state = {
     hero: {
-        level: 1, xp: 0, xpToNext: 5000,
-        hp: 200, maxHp: 200, damage: 100,
-        critChance: 0, critDamage: 100, evade: 0,
-        silver: 500, gold: 100, diamonds: 0, keys: 0,
-        inventory: [], equipment: [], consumables: { potion: 3 },
+        level: 1, 
+        xp: 0, 
+        xpToNext: 200,
+        hp: 50, 
+        maxHp: 50, 
+        damage: 5,
+        silver: 100000, gold: 100000, diamonds: 0, keys: 0, // TODO: Для теста. Вернуть 500/100.
+        
+        // НОВАЯ СИСТЕМА:
+        purchased: [], // Все купленные предметы (от них идут статы)
+        equipped: {},  // Надетые предметы (для иконок, например { weapon: 'w1' })
+
+        collectionParts: [], 
+        
+        consumables: { potion: 3 },
         talents: { hp: 1, dmg: 1, def: 1, crit: 1, heal: 1 },
         pet: null, achievements: [], dailyClaimedDate: null,
         lastPlayed: Date.now(), towerFloor: 1, towerRecord: 0
@@ -27,13 +37,27 @@ export function loadGame() {
     }
 
     const h = state.hero;
-    if (!Array.isArray(h.inventory)) h.inventory = [];
-    if (!Array.isArray(h.equipment)) h.equipment = [];
+    
+    // Миграция со старой системы (если остались старые сейвы с инвентарем)
+    if (!Array.isArray(h.purchased)) {
+        h.purchased = [];
+        // Если был инвентарь или экипировка — переносим всё в purchased
+        if (Array.isArray(h.inventory)) h.purchased.push(...h.inventory);
+        if (Array.isArray(h.equipment)) h.purchased.push(...h.equipment);
+        h.inventory = [];
+        h.equipment = [];
+    }
+    
+    // Убираем дубликаты в купленных (на всякий случай)
+    h.purchased = [...new Set(h.purchased)];
+
+    if (typeof h.equipped !== 'object' || h.equipped === null) h.equipped = {};
     if (!Array.isArray(h.achievements)) h.achievements = [];
     if (!h.consumables) h.consumables = { potion: 3 };
     if (!h.talents) h.talents = { hp: 1, dmg: 1, def: 1, crit: 1, heal: 1 };
     if (typeof h.towerFloor !== 'number') h.towerFloor = 1;
     if (typeof h.towerRecord !== 'number') h.towerRecord = 0;
+    if (typeof h.xpToNext !== 'number' || h.xpToNext > 5000) h.xpToNext = 200;
 
     const sb = localStorage.getItem('defeatedBosses');
     if (sb) {
@@ -42,17 +66,15 @@ export function loadGame() {
     }
 }
 
-// Расчет статов (без window.itemsData — импортируем напрямую)
 export function calcStats() {
     const h = state.hero;
-    const levelMult = 1 + (h.level - 1) * 0.05;
+    const levelMult = 1 + (h.level - 1) * 0.1; 
 
-    // База: 200 HP, 100 урона (растёт от уровня)
-    let maxHp = 200 * levelMult;
-    let damage = 100 * levelMult;
+    let maxHp = 50 * levelMult;
+    let damage = 5 * levelMult;
 
-    // Бонусы от экипировки
-    h.equipment.forEach(id => {
+    // Статы считаются от ВСЕХ купленных предметов
+    h.purchased.forEach(id => {
         const it = items.find(i => i.id === id);
         if (!it) return;
         if (it.hpBonus)     maxHp  += it.hpBonus;
@@ -62,11 +84,10 @@ export function calcStats() {
     return { maxHp, damage };
 }
 
-// Синхронизирует state.hero с calcStats (HP, maxHp, damage, crit, evade, armor)
 export function syncHeroStats() {
     const s = calcStats();
-    state.hero.maxHp = s.maxHp;
-    state.hero.damage = s.damage;
+    state.hero.maxHp = Math.floor(s.maxHp);
+    state.hero.damage = Math.floor(s.damage);
     if (state.hero.hp > s.maxHp) state.hero.hp = s.maxHp;
     return s;
 }
@@ -74,10 +95,14 @@ export function syncHeroStats() {
 export function gainXP(amount) {
     const h = state.hero;
     h.xp += amount;
+    
     while (h.xp >= h.xpToNext) {
         h.xp -= h.xpToNext;
         h.level++;
-        h.xpToNext = Math.floor(5000 * Math.pow(1.5, h.level - 1));
+        
+        // Формула: 200 * (Уровень ^ 2.35)
+        h.xpToNext = Math.floor(200 * Math.pow(h.level, 2.35));
+        
         h.diamonds += 1;
     }
     syncHeroStats();

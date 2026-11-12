@@ -2,13 +2,31 @@ import { state, calcStats, saveGame, syncHeroStats } from './state.js';
 import { items as itemData, consumables as consData, achievements as achData, bosses as bossData } from './data.js';
 import { itemBonusText, rarityColor, todayStr, playSound, SLOT_LABELS } from './utils.js';
 
-// --- НОВОЕ: Конфигурация для красивого рендера талантов ---
+// --- Конфигурация для красивого рендера талантов ---
 const TALENT_INFO = {
     hp:   { name: 'ВЫНОСЛИВОСТЬ',    icon: 'images/skill_hp.png' },
     dmg:  { name: 'СВИРЕПЫЙ УДАР',   icon: 'images/skill_dmg.png' },
     def:  { name: 'БЛОК ЩИТОМ',      icon: 'images/skill_def.png' },
     crit: { name: 'НЕВИДИМЫЙ УДАР',  icon: 'images/skill_crit.png' },
     heal: { name: 'МАСТЕР ЦЕЛИТЕЛЬ', icon: 'images/skill_heal.png' }
+};
+
+// --- ДАННЫЕ КОЛЛЕКЦИЙ ---
+// id - уникальный id коллекции, rewardItemId - id предмета из data.js, который она открывает
+export const COLLECTIONS_DATA = {
+    weapon: [
+        { id: 'coll-w1', name: 'Меч Гвардейца', rewardItemId: 'w10', parts: 5 },
+        { id: 'coll-w2', name: 'Кровавая Заря', rewardItemId: 'w15', parts: 5 }
+    ],
+    helmet: [
+        { id: 'coll-h1', name: 'Шлем Хитина', rewardItemId: 'h10', parts: 5 }
+    ],
+    chest: [
+        { id: 'coll-c1', name: 'Броня Мембраны', rewardItemId: 'c10', parts: 5 }
+    ],
+    gloves: [
+        { id: 'coll-g1', name: 'Хватка Богов', rewardItemId: 'g10', parts: 5 }
+    ]
 };
 
 export function updateHUD() {
@@ -27,33 +45,6 @@ export function updateHUD() {
     document.getElementById('hero-gold').textContent = h.gold;
     document.getElementById('hero-diamonds').textContent = h.diamonds;
     document.getElementById('hero-keys').textContent = h.keys;
-
-    renderEquipment();
-}
-
-export function renderEquipment() {
-    document.querySelectorAll('.equip-slot').forEach(slot => {
-        const type = slot.dataset.slot;
-        const equippedId = state.hero.equipment.find(id => {
-            const it = itemData.find(i => i.id === id);
-            return it && it.type === type;
-        });
-
-        if (equippedId) {
-            const it = itemData.find(i => i.id === equippedId);
-            slot.classList.remove('empty');
-            slot.style.borderColor = rarityColor(it.rarity);
-            slot.style.backgroundImage = `url('${it.image}')`;
-            slot.innerHTML = `<div class="slot-bonus">${itemBonusText(it)}</div>`;
-            slot.title = it.name;
-        } else {
-            slot.classList.add('empty');
-            slot.style.borderColor = '#444';
-            slot.style.backgroundImage = 'none';
-            slot.innerHTML = '';
-            slot.title = SLOT_LABELS[type];
-        }
-    });
 }
 
 export function goToScreen(id) {
@@ -75,7 +66,7 @@ export function switchProfileTab(tabId) {
     document.getElementById(`tab-${tabId}`).classList.add('active');
 
     if (tabId === 'achievements') renderAchievements();
-    if (tabId === 'talents') updateProfileUI(); // Подстраховка: обновляем цены при переключении
+    if (tabId === 'talents') updateProfileUI();
 }
 
 function getTalentPrice(id, lvl) {
@@ -97,7 +88,6 @@ function getTalentPrice(id, lvl) {
         : { silver: cost, gold: 0 };
 }
 
-// --- ОБНОВЛЕНО: Динамическая отрисовка всех талантов ---
 export function updateProfileUI() {
     const h = state.hero;
     const container = document.getElementById('talents-container');
@@ -105,7 +95,6 @@ export function updateProfileUI() {
 
     container.innerHTML = ''; 
 
-    // Проходимся по всем способностям
     Object.keys(TALENT_INFO).forEach(id => {
         const info = TALENT_INFO[id];
         const lvl = h.talents[id];
@@ -202,6 +191,9 @@ export function renderBosses() {
     });
 }
 
+// ==========================================
+// МАГАЗИН (С УЧЕТОМ КОЛЛЕКЦИЙ)
+// ==========================================
 export function renderShop() {
     const tabs = document.querySelectorAll('.shop-tab');
     let currentType = 'weapon';
@@ -228,11 +220,41 @@ export function renderShop() {
     }
 
     itemData.filter(i => i.type === currentType).forEach(item => {
-        const owned = state.hero.inventory.includes(item.id) || state.hero.equipment.includes(item.id);
-        const equipped = state.hero.equipment.includes(item.id);
+        const isPurchased = state.hero.purchased.includes(item.id);
+        const isEquipped = state.hero.equipped[item.type] === item.id;
+        
+        // ПРОВЕРКА: Привязан ли предмет к коллекции?
+        let collectionInfo = null;
+        for (let type in COLLECTIONS_DATA) {
+            const coll = COLLECTIONS_DATA[type].find(c => c.rewardItemId === item.id);
+            if (coll) { collectionInfo = coll; break; }
+        }
+
+        // Если привязан, проверяем, собрана ли коллекция
+        let isCollectionComplete = false;
+        if (collectionInfo) {
+            isCollectionComplete = Array.from({length: collectionInfo.parts}, (_, i) => `${collectionInfo.id}-part${i+1}`)
+                                         .every(id => state.hero.collectionParts.includes(id));
+        }
+
         const d = document.createElement('div');
-        d.className = 'shop-item' + (owned ? ' bought' : '');
+        d.className = 'shop-item' + (isPurchased ? ' bought' : '');
         d.style.borderColor = rarityColor(item.rarity);
+        
+        // Формируем кнопку
+        let actionButton = '';
+        
+        if (collectionInfo && !isCollectionComplete) {
+            // Если предмет из коллекции и она не собрана — блокируем
+            actionButton = `<button style="background:#555; cursor:not-allowed;" disabled>🔒 В КОЛЛЕКЦИИ</button>`;
+        } else if (!isPurchased) {
+            actionButton = `<button onclick="window.buyItem('${item.id}')">КУПИТЬ</button>`;
+        } else if (isEquipped) {
+            actionButton = `<button style="background:#555; cursor:default;" disabled>НАДЕТО</button>`;
+        } else {
+            actionButton = `<button style="background:#8bc34a;" onclick="window.equipFromShop('${item.id}')">НАДЕТЬ</button>`;
+        }
+
         d.innerHTML = `
             <img src="${item.image}" class="item-img" onerror="this.style.display='none'">
             <h3>${item.name}</h3>
@@ -241,60 +263,62 @@ export function renderShop() {
                 <img src="images/coin_silver.png" class="price-icon" onerror="this.style.display='none'">${item.price.silver || 0}
                 <img src="images/coin_gold.png" class="price-icon" onerror="this.style.display='none'">${item.price.gold || 0}
             </div>
-            ${owned
-                ? `<div class="owned-label">${equipped ? 'НАДЕТО' : 'В СУМКЕ'}</div>`
-                : `<button onclick="window.buyItem('${item.id}')">КУПИТЬ</button>`}`;
+            ${actionButton}
+        `;
         grid.appendChild(d);
     });
 }
 
-export function openEquipModal(type) {
-    document.getElementById('equip-modal').classList.remove('hidden');
-    document.getElementById('modal-slot-name').textContent = SLOT_LABELS[type] || type.toUpperCase();
-    renderModalItems(type);
-}
+// ==========================================
+// ЭКРАН КОЛЛЕКЦИЙ
+// ==========================================
+export function renderCollections() {
+    const tabs = document.querySelectorAll('.coll-tab');
+    let currentType = 'weapon';
+    tabs.forEach(t => { if (t.classList.contains('active')) currentType = t.dataset.type; });
 
-export function renderModalItems(type) {
-    const box = document.getElementById('modal-items');
-    box.innerHTML = '';
+    const grid = document.getElementById('collections-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
 
-    const equippedId = state.hero.equipment.find(id => {
-        const it = itemData.find(i => i.id === id); return it && it.type === type;
-    });
-
-    if (equippedId) {
-        const it = itemData.find(i => i.id === equippedId);
-        const d = document.createElement('div');
-        d.className = 'modal-item';
-        d.style.borderColor = rarityColor(it.rarity);
-        d.innerHTML = `
-            <img src="${it.image}" class="item-img" onerror="this.style.display='none'">
-            <h3>${it.name}</h3>
-            <p>${itemBonusText(it)}</p>
-            <button onclick="window.unequipItem('${type}')">СНЯТЬ</button>`;
-        box.appendChild(d);
-    }
-
-    const available = state.hero.inventory.filter(id => {
-        const it = itemData.find(i => i.id === id); return it && it.type === type;
-    });
-
-    if (!equippedId && available.length === 0) {
-        box.innerHTML += '<p style="color:#666; text-align:center; width:100%;">Нет предметов этого типа</p>';
+    const collections = COLLECTIONS_DATA[currentType] || [];
+    
+    if (collections.length === 0) {
+        grid.innerHTML = '<p style="color:#888; text-align:center;">В этой категории пока нет коллекций.</p>';
         return;
     }
 
-    available.forEach(id => {
-        const it = itemData.find(i => i.id === id);
-        const d = document.createElement('div');
-        d.className = 'modal-item';
-        d.style.borderColor = rarityColor(it.rarity);
-        d.innerHTML = `
-            <img src="${it.image}" class="item-img" onerror="this.style.display='none'">
-            <h3>${it.name}</h3>
-            <p>${itemBonusText(it)}</p>
-            <button onclick="window.equipItem('${id}')">НАДЕТЬ</button>`;
-        box.appendChild(d);
+    collections.forEach(coll => {
+        const block = document.createElement('div');
+        block.className = 'collection-block';
+        
+        let slotsHtml = '';
+        // Рисуем 5 слотов
+        for (let i = 1; i <= coll.parts; i++) {
+            const partId = `${coll.id}-part${i}`;
+            const isCollected = state.hero.collectionParts.includes(partId);
+            
+            slotsHtml += `
+                <div class="coll-slot ${isCollected ? 'collected' : ''}">
+                    ${isCollected ? '✅' : '❓'}
+                    <div class="part-num">${i}</div>
+                </div>
+            `;
+        }
+
+        const isComplete = Array.from({length: coll.parts}, (_, i) => `${coll.id}-part${i+1}`)
+                                 .every(id => state.hero.collectionParts.includes(id));
+
+        block.innerHTML = `
+            <h3 class="collection-title">${coll.name}</h3>
+            <div class="collection-items">
+                ${slotsHtml}
+            </div>
+            <div style="text-align:center; margin-top:10px; color:${isComplete ? 'var(--hp)' : '#888'}; font-size:14px;">
+                ${isComplete ? '✨ КОЛЛЕКЦИЯ СОБРАНА (Открыто в магазине)' : 'Соберите все 5 частей, чтобы разблокировать предмет'}
+            </div>
+        `;
+        grid.appendChild(block);
     });
 }
 
@@ -302,7 +326,6 @@ export function renderModalItems(type) {
    БОЕВОЙ ЭКРАН
    ============================================================ */
 
-// Заполняет боевой интерфейс данными
 export function renderBattleUI(boss, isTower = false) {
     const hero = state.hero;
 
@@ -329,10 +352,8 @@ export function renderBattleUI(boss, isTower = false) {
     heroImg.src = 'images/hero_full.png';
 
     document.getElementById('battle-log').innerHTML = '';
-    
     document.getElementById('bt-timer').textContent = '00:00:00';
 
-    // Сброс визуала кулдаунов
     document.querySelectorAll('.skill-btn').forEach(btn => {
         btn.classList.remove('on-cooldown');
         btn.disabled = false;
@@ -344,7 +365,6 @@ export function renderBattleUI(boss, isTower = false) {
     updateSkillCooldowns();
 }
 
-// Обновляет HP-бары и цифры
 export function updateBattleHP() {
     const hero = state.hero;
     const bs = window.Battle && window.Battle.battleState
@@ -370,15 +390,11 @@ export function updateBattleHP() {
     }
 }
 
-/**
- * Обновляет состояние кнопок скиллов и полосок кулдауна.
- */
 export function updateSkillCooldowns() {
     document.querySelectorAll('.skill-btn').forEach(btn => {
         const action = btn.dataset.action || btn.dataset.skill;
         if (!action) return;
 
-        // Кнопка Атаки должна быть ВСЕГДА доступна (у неё 0 КД)
         if (action === 'attack') {
             btn.disabled = false;
             btn.classList.remove('on-cooldown');
@@ -387,13 +403,8 @@ export function updateSkillCooldowns() {
             return;
         }
 
-        const ready = window.Battle
-            ? window.Battle.isSkillReady(action)
-            : true;
-
-        const progress = window.Battle
-            ? window.Battle.getCooldownProgress(action)
-            : 0;
+        const ready = window.Battle ? window.Battle.isSkillReady(action) : true;
+        const progress = window.Battle ? window.Battle.getCooldownProgress(action) : 0;
 
         const bar = btn.querySelector('.skill-cd');
         if (bar) bar.style.width = (progress * 100) + '%';
@@ -403,7 +414,6 @@ export function updateSkillCooldowns() {
     });
 }
 
-// Рендер левой панели быстрых слотов (зелья)
 export function renderQuickSlots() {
     const wrap = document.getElementById('quick-slots');
     if (!wrap) return;
@@ -429,7 +439,6 @@ export function renderQuickSlots() {
     });
 }
 
-// Показ модалки победы с трофеями и уроном
 export function showVictoryModal(rewards) {
     const modal = document.getElementById('victory-modal');
     if (!modal) return;
@@ -442,38 +451,40 @@ export function showVictoryModal(rewards) {
     const trophiesBox = document.getElementById('victory-trophies');
     trophiesBox.innerHTML = '';
 
+    // Предметы / Части коллекций
     const items = rewards.items || [];
     items.forEach(it => {
         const d = document.createElement('div');
         d.className = 'vt-item';
         d.innerHTML = `
-            <div class="vt-icon">${it.icon || '🎁'}</div>
-            <div class="vt-amount">×${it.amount || 1}</div>
-            <div class="vt-label">${it.label || 'Трофей'}</div>`;
+            <div class="vt-icon" style="font-size:20px;">${it.icon || '🎁'}</div>
+            <div class="vt-amount" style="font-size:12px;">${it.label || 'Часть'}</div>`;
         trophiesBox.appendChild(d);
     });
 
-    if (rewards.gold) {
+    // Серебро
+    if (rewards.silver) {
         const d = document.createElement('div');
         d.className = 'vt-item';
         d.innerHTML = `
-            <div class="vt-icon">💰</div>
-            <div class="vt-amount">+${rewards.gold}</div>
-            <div class="vt-label">Золото</div>`;
+            <div class="vt-icon"><img src="images/coin_silver.png" style="width: 36px; height: 36px;" onerror="this.style.display='none'"></div>
+            <div class="vt-amount">+${rewards.silver.toLocaleString('ru-RU')}</div>
+            <div class="vt-label">Серебро</div>`;
         trophiesBox.appendChild(d);
     }
 
-    if (rewards.stars) {
+    // Опыт
+    if (rewards.xp) {
         const d = document.createElement('div');
         d.className = 'vt-item';
         d.innerHTML = `
-            <div class="vt-icon">⭐</div>
-            <div class="vt-amount">+${rewards.stars}</div>
-            <div class="vt-label">Звёзды</div>`;
+            <div class="vt-icon">✨</div>
+            <div class="vt-amount">+${rewards.xp.toLocaleString('ru-RU')}</div>
+            <div class="vt-label">Опыт</div>`;
         trophiesBox.appendChild(d);
     }
 
-    // Боковые панели
+    // Боковые панели (Рейтинг и Трофеи)
     const rating = document.getElementById('victory-rating');
     rating.innerHTML = `
         <li><span>1. Тень</span><b>12 480</b></li>
@@ -483,14 +494,13 @@ export function showVictoryModal(rewards) {
 
     const trophyList = document.getElementById('victory-trophy-list');
     trophyList.innerHTML = `
-        <li><span>Золото</span><b>+${rewards.gold || 0}</b></li>
-        <li><span>Звёзды</span><b>+${rewards.stars || 0}</b></li>
+        <li><span>Серебро</span><b>+${(rewards.silver || 0).toLocaleString('ru-RU')}</b></li>
+        <li><span>Опыт</span><b>+${(rewards.xp || 0).toLocaleString('ru-RU')}</b></li>
         <li><span>Предметы</span><b>${(rewards.items || []).length}</b></li>`;
 
     modal.classList.remove('hidden');
 }
 
-// Закрыть модалку победы
 export function closeVictoryModal() {
     const modal = document.getElementById('victory-modal');
     if (modal) modal.classList.add('hidden');

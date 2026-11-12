@@ -2,7 +2,7 @@ import { state, loadGame, saveGame, calcStats, gainXP, syncHeroStats } from './j
 import { items, bosses } from './js/data.js';
 import * as Battle from './js/battle.js';
 import * as UI from './js/ui.js';
-import { renderInventory, equipItem, unequipItem, sellItem } from './js/inventory.js';
+import { COLLECTIONS_DATA } from './js/ui.js'; // <-- ВОТ ЭТО БЫЛО ПРОПУЩЕНО
 import { openBossModal, closeBossModal, startBossFight } from './js/boss-modal.js';
 import { renderTower, startTowerBattle } from './js/tower.js';
 import { playSound } from './js/utils.js';
@@ -22,8 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
         UI.goToScreen(id);
         if (id === 'map-screen') UI.renderBosses();
         if (id === 'shop-screen') UI.renderShop();
-        if (id === 'inventory-screen') renderInventory();
         if (id === 'tower-screen') renderTower();
+        if (id === 'collections-screen') UI.renderCollections();
     };
 
     window.openProfileModal = (tab) => UI.openProfileModal(tab);
@@ -35,14 +35,45 @@ document.addEventListener('DOMContentLoaded', () => {
     window.buyItem = (id) => {
         const item = items.find(i => i.id === id);
         if (!item) return;
+
+        if (state.hero.purchased.includes(item.id)) return;
+
         const price = item.price;
         if (state.hero.silver < (price.silver || 0)) return alert('Мало серебра!');
         if (state.hero.gold < (price.gold || 0)) return alert('Мало золота!');
+
         state.hero.silver -= price.silver || 0;
         state.hero.gold -= price.gold || 0;
-        state.hero.inventory.push(item.id);
-        saveGame(); UI.updateHUD(); UI.renderShop();
+        
+        state.hero.purchased.push(item.id);
+        
+        if (!state.hero.equipped[item.type]) {
+            state.hero.equipped[item.type] = item.id;
+        }
+
+        syncHeroStats(); 
+        saveGame(); 
+        UI.updateHUD(); 
+        UI.renderShop();
         playSound('click');
+    };
+
+    window.equipFromShop = (id) => {
+        const item = items.find(i => i.id === id);
+        if (!item) return;
+        
+        state.hero.equipped[item.type] = item.id;
+        
+        if (item.type === 'weapon') {
+            const attackBtnIcon = document.querySelector('.skill-btn[data-skill="attack"] .skill-icon');
+            if (attackBtnIcon) {
+                attackBtnIcon.innerHTML = `<img src="${item.image}" style="width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 2px 4px #000);">`;
+            }
+        }
+        
+        saveGame();
+        UI.renderShop();
+        playSound('crit');
     };
 
     window.buyConsumable = (key, price) => {
@@ -52,23 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
             saveGame(); UI.updateHUD(); UI.renderShop();
             playSound('click');
         } else alert('Мало серебра!');
-    };
-
-    // --- Инвентарь ---
-    window.equipItem = equipItem;
-    window.unequipItem = unequipItem;
-    window.sellItem = sellItem;
-
-    window.openChest = () => {
-        if (state.hero.keys < 3) return;
-        state.hero.keys -= 3;
-        const pool = items.filter(i => !state.hero.inventory.includes(i.id) && !state.hero.equipment.includes(i.id));
-        if (pool.length === 0) { alert('Все предметы собраны!'); state.hero.keys += 3; return; }
-        const reward = pool[Math.floor(Math.random() * pool.length)];
-        state.hero.inventory.push(reward.id);
-        alert(`Из сундука выпал: ${reward.name}!`);
-        saveGame(); UI.updateHUD(); renderInventory();
-        playSound('crit');
     };
 
     // --- Окно босса ---
@@ -82,13 +96,23 @@ document.addEventListener('DOMContentLoaded', () => {
     window.setupBattleUI = (boss, overrides = {}) => {
         UI.renderBattleUI(boss, Battle.battleState.isTower);
 
-        // КРИТИЧНО: вешаем обработчики на кнопки скиллов
         document.querySelectorAll('.skill-btn').forEach(btn => {
             btn.onclick = () => {
                 const action = btn.dataset.action || btn.dataset.skill;
                 if (action) window.playerAction(action);
             };
         });
+
+        const equippedWeaponId = state.hero.equipped['weapon'];
+        if (equippedWeaponId) {
+            const weapon = items.find(i => i.id === equippedWeaponId);
+            if (weapon) {
+                const attackBtnIcon = document.querySelector('.skill-btn[data-skill="attack"] .skill-icon');
+                if (attackBtnIcon) {
+                    attackBtnIcon.innerHTML = `<img src="${weapon.image}" style="width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 2px 4px #000);">`;
+                }
+            }
+        }
 
         window.battleUI = {
             onHit: (dmg, isCrit, label) => {
@@ -136,12 +160,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.hero.gold += goldReward;
                 gainXP(xpReward);
                 if (!state.defeatedBosses.includes(boss.id)) state.defeatedBosses.push(boss.id);
-                saveGame(); UI.updateHUD();
+                
+                // Шанс на выпадение части коллекции (20%)
+                let droppedParts = [];
+                if (Math.random() < 0.20) {
+                    let allParts = [];
+                    for (let type in COLLECTIONS_DATA) {
+                        COLLECTIONS_DATA[type].forEach(c => {
+                            for(let i=1; i<=c.parts; i++) {
+                                allParts.push({ id: `${c.id}-part${i}`, name: c.name });
+                            }
+                        });
+                    }
+                    
+                    const missingParts = allParts.filter(p => !state.hero.collectionParts.includes(p.id));
+                    
+                    if (missingParts.length > 0) {
+                        const randomPart = missingParts[Math.floor(Math.random() * missingParts.length)];
+                        state.hero.collectionParts.push(randomPart.id);
+                        droppedParts.push({ icon: '🧩', amount: 1, label: `Часть: ${randomPart.name}` });
+                    }
+                }
+
+                saveGame(); 
+                UI.updateHUD();
 
                 UI.showVictoryModal({
-                    gold: goldReward,
-                    stars: xpReward > 0 ? Math.round(xpReward * 0.99) : 1980,
-                    items: []
+                    silver: silverReward,
+                    xp: xpReward,
+                    items: droppedParts
                 });
 
                 playSound('crit');
@@ -163,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
             })
         };
 
-        // После setup — синхронизируем кнопки с текущими кулдаунами
         UI.updateSkillCooldowns();
     };
 
@@ -198,68 +244,57 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================================
     // ДЕЙСТВИЯ ИГРОКА
     // ============================================================
-window.playerAction = (action) => {
-    if (!Battle.battleState.active) return;
-    const lvl = state.hero.talents;
+    window.playerAction = (action) => {
+        if (!Battle.battleState.active) return;
+        const lvl = state.hero.talents;
 
-    switch (action) {
-
-        // АТАКА — без КД, спамится сколько угодно
-        case 'attack': {
-            Battle.doAttack(1, 'АТАКА', window.battleUI);
-            break;
-        }
-
-        // СВИРЕПЫЙ УДАР — плоская прибавка 6×(lvl-1), босс отвечает
-        case 'frenzy': {
-            if (!Battle.isSkillReady('frenzy')) return;
-            Battle.startCooldown('frenzy');
-            const bonus = 6 * (lvl.dmg - 1);
-            Battle.doAttackFlat(bonus, 'СВИРЕПЫЙ УДАР', window.battleUI);
-            break;
-        }
-
-        // БЛОК ЩИТОМ — базовый удар, ответ босса минус 2×(lvl-1)
-        case 'shieldblock': {
-            if (!Battle.isSkillReady('shieldblock')) return;
-            Battle.startCooldown('shieldblock');
-            Battle.battleState.bossDamageReduction = 2 * (lvl.def - 1);
-            Battle.doAttack(1, 'БЛОК ЩИТОМ', window.battleUI);
-            break;
-        }
-
-        // НЕВИДИМЫЙ УДАР — плоская прибавка 8×(lvl-1), босс НЕ отвечает
-        case 'stealth': {
-            if (!Battle.isSkillReady('stealth')) return;
-            Battle.startCooldown('stealth');
-            Battle.battleState.silentStrike = true;
-            const bonus = 8 * (lvl.crit - 1);
-            Battle.doAttackFlat(bonus, 'НЕВИДИМЫЙ УДАР', window.battleUI);
-            break;
-        }
-
-        // ЗЕЛЬЕ — из левой панели, хил 250 + 5×(lvl-1)
-        case 'potion': {
-            if (!Battle.isSkillReady('potion')) return;
-            const bs = Battle.battleState;
-            if (bs.potions <= 0) {
-                window.battleUI.onLog('<span class="lose">Зелья закончились!</span>');
-                return;
+        switch (action) {
+            case 'attack': {
+                Battle.doAttack(1, 'АТАКА', window.battleUI);
+                break;
             }
-            Battle.startCooldown('potion');
-            const heal = 250 + 5 * (lvl.heal - 1);
-            state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + heal);
-            bs.potions--;
-            UI.updateBattleHP();
-            window.battleUI.onLog(`<span class="win">Зелье: +${heal} HP</span>`);
-            playSound('heal');
-            Battle.bossTurn(window.battleUI);
-            break;
+            case 'frenzy': {
+                if (!Battle.isSkillReady('frenzy')) return;
+                Battle.startCooldown('frenzy');
+                const bonus = 6 * (lvl.dmg - 1);
+                Battle.doAttackFlat(bonus, 'СВИРЕПЫЙ УДАР', window.battleUI);
+                break;
+            }
+            case 'shieldblock': {
+                if (!Battle.isSkillReady('shieldblock')) return;
+                Battle.startCooldown('shieldblock');
+                Battle.battleState.bossDamageReduction = 2 * (lvl.def - 1);
+                Battle.doAttack(1, 'БЛОК ЩИТОМ', window.battleUI);
+                break;
+            }
+            case 'stealth': {
+                if (!Battle.isSkillReady('stealth')) return;
+                Battle.startCooldown('stealth');
+                Battle.battleState.silentStrike = true;
+                const bonus = 8 * (lvl.crit - 1);
+                Battle.doAttackFlat(bonus, 'НЕВИДИМЫЙ УДАР', window.battleUI);
+                break;
+            }
+            case 'potion': {
+                if (!Battle.isSkillReady('potion')) return;
+                const bs = Battle.battleState;
+                if (bs.potions <= 0) {
+                    window.battleUI.onLog('<span class="lose">Зелья закончились!</span>');
+                    return;
+                }
+                Battle.startCooldown('potion');
+                const heal = 250 + 5 * (lvl.heal - 1);
+                state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + heal);
+                bs.potions--;
+                UI.updateBattleHP();
+                window.battleUI.onLog(`<span class="win">Зелье: +${heal} HP</span>`);
+                playSound('heal');
+                Battle.bossTurn(window.battleUI);
+                break;
+            }
         }
-    }
-
-    UI.updateSkillCooldowns();
-};
+        UI.updateSkillCooldowns();
+    };
 
     // ============================================================
     // ПОБЕГ / ЗАВЕРШЕНИЕ
@@ -278,7 +313,6 @@ window.playerAction = (action) => {
 
     window.closeVictoryModal = () => UI.closeVictoryModal();
 
-    // Повторить бой — перезапуск с тем же боссом
     window.repeatBattle = () => {
         document.getElementById('victory-modal').classList.add('hidden');
         const boss = Battle.battleState.currentBoss;
@@ -302,20 +336,12 @@ window.playerAction = (action) => {
         });
     });
 
-    // --- Вкладки инвентаря ---
-    document.querySelectorAll('.inv-tab').forEach(tab => {
+    // --- Вкладки коллекций ---
+    document.querySelectorAll('.coll-tab').forEach(tab => {
         tab.addEventListener('click', () => {
-            document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.coll-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            renderInventory();
-            playSound('click');
-        });
-    });
-
-    // --- Слоты экипировки ---
-    document.querySelectorAll('.equip-slot').forEach(slot => {
-        slot.addEventListener('click', () => {
-            UI.openEquipModal(slot.dataset.slot);
+            UI.renderCollections();
             playSound('click');
         });
     });

@@ -1,6 +1,14 @@
 export const SLOT_LABELS = {
-    weapon:'ОРУЖИЕ', helmet:'ШЛЕМ', chest:'БРОНЯ',
-    legs:'ПОНОЖИ', boots:'БОТИНКИ', shield:'ЩИТ'
+    weapon: 'ОРУЖИЕ',
+    helmet: 'ШЛЕМ',
+    chest: 'БРОНЯ',
+    legs: 'ПОНОЖИ',
+    boots: 'БОТИНКИ',
+    shield: 'ЩИТ',
+    gloves: 'ПЕРЧАТКИ',
+    ring: 'КОЛЬЦО',
+    bracer: 'БРАСЛЕТ',
+    amulet: 'ОЖЕРЕЛЬЕ'
 };
 
 export function itemBonusText(item) {
