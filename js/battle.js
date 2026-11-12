@@ -1,3 +1,4 @@
+// js/battle.js
 import { state, syncHeroStats } from './state.js';
 
 export const battleState = {
@@ -5,7 +6,6 @@ export const battleState = {
     bossHp: 0,
     bossMaxHp: 0,
     bossEnraged: false,
-    defending: false,
     active: false,
     auto: false,
     timer: null,
@@ -13,46 +13,59 @@ export const battleState = {
     potions: 3,
     towerMode: false,
     isTower: false,
+
     // Таймер боя
     startTime: 0,
     timerInterval: null,
-    // Кулдауны скиллов — храним TIMESTAMP окончания (мс)
-    cooldowns: {
-        attack: 0,
-        heavy: 0,
-        defend: 0,
-        potion: 0
-    },
-    // Базовые кулдауны (сек)
+
+    // Кулдауны скиллов — timestamp окончания (мс). Чистый объект.
+    cooldowns: {},
+
+    // Базовые кулдауны (сек). attack = 0 → без КД.
     baseCooldowns: {
-        attack: 0.6,
-        heavy: 2.5,
-        defend: 4,
-        potion: 5
+        attack:      0,
+        frenzy:      2.5,
+        shieldblock: 4,
+        stealth:     3.5,
+        potion:      5
     },
+
     // Накопленный урон героя за бой
     totalDamage: 0,
-    // Активные кулдаун-интервалы для обновления UI
+
+    // Флаги механик
+    silentStrike: false,          // «невидимый удар»: босс не отвечает
+    bossDamageReduction: 0,       // плоское снижение урона босса (блок щитом)
+
+    // Активные кулдаун-интервалы
     cdIntervals: []
 };
 
+// ============================================================
+// СТАРТ / ТАЙМЕР
+// ============================================================
+
 export function beginBattle(boss, isTower = false) {
     const s = syncHeroStats();
+
     battleState.currentBoss = boss;
     battleState.bossMaxHp = boss.hp;
     battleState.bossHp = boss.hp;
     battleState.bossEnraged = false;
-    battleState.defending = false;
     battleState.active = true;
     battleState.potions = 3;
     battleState.towerMode = isTower;
     battleState.isTower = isTower;
     battleState.totalDamage = 0;
+
+    battleState.silentStrike = false;
+    battleState.bossDamageReduction = 0;
+
     state.hero.hp = s.maxHp;
 
     // Сброс таймера и кулдаунов
     battleState.startTime = Date.now();
-    battleState.cooldowns = { attack: 0, heavy: 0, defend: 0, potion: 0 };
+    battleState.cooldowns = {};
     clearBattleTimers();
     startBattleTimer();
 }
@@ -88,14 +101,18 @@ export function formatDuration(ms) {
     return `${h}:${m}:${s}`;
 }
 
+// ============================================================
+// КУЛДАУНЫ
+// ============================================================
+
 /**
- * Запуск кулдауна скилла.
- * cooldowns[skill] = timestamp окончания (мс).
- * Полоска .skill-cd плавно уменьшается от 100% до 0%.
+ * Запуск кулдауна. Если base === 0 (attack) — выходим сразу,
+ * интервал не крутим.
  */
 export function startCooldown(skill) {
     const base = battleState.baseCooldowns[skill];
     if (!base) return;
+
     const endTime = Date.now() + base * 1000;
     battleState.cooldowns[skill] = endTime;
 
@@ -117,17 +134,10 @@ export function startCooldown(skill) {
     battleState.cdIntervals.push(interval);
 }
 
-/**
- * Готов ли скилл: true, если Date.now() >= timestamp окончания.
- */
 export function isSkillReady(skill) {
     return Date.now() >= (battleState.cooldowns[skill] || 0);
 }
 
-/**
- * Прогресс кулдауна 0..1 (1 = только запущен, 0 = готов).
- * Используется UI.updateSkillCooldowns() для отрисовки полоски.
- */
 export function getCooldownProgress(skill) {
     const end = battleState.cooldowns[skill] || 0;
     const base = battleState.baseCooldowns[skill] || 1;
@@ -135,30 +145,76 @@ export function getCooldownProgress(skill) {
     return Math.max(0, Math.min(1, (end - Date.now()) / (base * 1000)));
 }
 
+// ============================================================
+// АТАКИ
+// ============================================================
+
+/**
+ * Обычная атака с множителем. Критов нет.
+ * После удара — ответка босса, кроме случая silentStrike.
+ */
 export function doAttack(multiplier, label, uiCallback) {
     if (!battleState.active) return;
 
-    let dmg = state.hero.damage * multiplier;
-    const isCrit = Math.random() * 100 < state.hero.critChance;
-    if (isCrit) dmg *= (2 + state.hero.critDamage / 100);
-
+    const dmg = state.hero.damage * multiplier;
     battleState.totalDamage += dmg;
     battleState.bossHp = Math.max(0, battleState.bossHp - dmg);
 
-    uiCallback.onHit(dmg, isCrit, label);
+    uiCallback.onHit(dmg, false, label);
 
     if (battleState.bossHp <= 0) {
         battleState.active = false;
         uiCallback.onWin();
         return;
     }
+
+    if (battleState.silentStrike) {
+        battleState.silentStrike = false;
+        return;
+    }
     bossTurn(uiCallback);
 }
 
+/**
+ * Плоская прибавка к урону (свирепый / невидимый удар).
+ * dmg = hero.damage + flatBonus
+ */
+export function doAttackFlat(flatBonus, label, uiCallback) {
+    if (!battleState.active) return;
+
+    const dmg = state.hero.damage + flatBonus;
+    battleState.totalDamage += dmg;
+    battleState.bossHp = Math.max(0, battleState.bossHp - dmg);
+
+    uiCallback.onHit(dmg, false, label);
+
+    if (battleState.bossHp <= 0) {
+        battleState.active = false;
+        uiCallback.onWin();
+        return;
+    }
+
+    if (battleState.silentStrike) {
+        battleState.silentStrike = false;
+        return;
+    }
+    bossTurn(uiCallback);
+}
+
+// ============================================================
+// ХОД БОССА
+// ============================================================
+
+/**
+ * Босс бьёт в ответ.
+ * Единственная модификация урона — плоский bossDamageReduction
+ * (от «Блока щитом»), применяется один раз и сбрасывается.
+ */
 export function bossTurn(uiCallback) {
     const boss = battleState.currentBoss;
     if (!boss || battleState.bossHp <= 0) return;
 
+    // Ярость при < 50% HP
     if (battleState.bossHp < battleState.bossMaxHp * 0.5 && !battleState.bossEnraged) {
         battleState.bossEnraged = true;
         uiCallback.onLog('<span class="crit">БОСС В ЯРОСТИ!</span>');
@@ -166,22 +222,10 @@ export function bossTurn(uiCallback) {
 
     let bossDmg = boss.damage;
     if (battleState.bossEnraged) bossDmg *= 1.5;
-    bossDmg = Math.max(1, bossDmg - (state.hero.armor || 0));
 
-    const evadeChance = boss.archetype === 'mage'
-        ? state.hero.evade * 0.5
-        : state.hero.evade;
-
-    if (Math.random() * 100 < evadeChance) {
-        uiCallback.onLog('<span class="win">Уклонение!</span>');
-        return;
-    }
-
-    if (battleState.defending) {
-        bossDmg *= 0.3;
-        battleState.defending = false;
-        uiCallback.onLog('Защита поглотила часть урона.');
-    }
+    // Плоское снижение от «Блока щитом»
+    bossDmg = Math.max(1, bossDmg - battleState.bossDamageReduction);
+    battleState.bossDamageReduction = 0;
 
     state.hero.hp = Math.max(0, state.hero.hp - bossDmg);
     uiCallback.onBossHit(bossDmg);

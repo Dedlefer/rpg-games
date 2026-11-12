@@ -200,62 +200,63 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================================
     window.playerAction = (action) => {
         if (!Battle.battleState.active) return;
-
-        // Проверка кулдауна
-        if (['attack', 'heavy', 'defend', 'potion'].includes(action)) {
-            if (!Battle.isSkillReady(action)) {
-                window.battleUI.onLog('<span class="lose">Скилл ещё не готов!</span>');
-                return;
-            }
-        }
+        const lvl = state.hero.talents;
 
         switch (action) {
+
+            // АТАКА — без КД, спамится сколько угодно
             case 'attack': {
-                Battle.startCooldown('attack');
                 Battle.doAttack(1, 'АТАКА', window.battleUI);
                 break;
             }
-            case 'heavy': {
-                Battle.startCooldown('heavy');
-                if (Math.random() < 0.25) {
-                    window.battleUI.onLog('Тяжёлый удар промахнулся!');
-                    Battle.bossTurn(window.battleUI);
-                } else {
-                    Battle.doAttack(1.8, 'ТЯЖЁЛЫЙ УДАР', window.battleUI);
-                }
+
+            // СВИРЕПЫЙ УДАР — плоская прибавка 6×(lvl-1), босс отвечает
+            case 'frenzy': {
+                if (!Battle.isSkillReady('frenzy')) return;
+                Battle.startCooldown('frenzy');
+                const bonus = 6 * (lvl.dmg - 1);
+                Battle.doAttackFlat(bonus, 'СВИРЕПЫЙ УДАР', window.battleUI);
                 break;
             }
-            case 'defend': {
-                Battle.startCooldown('defend');
-                Battle.battleState.defending = true;
-                window.battleUI.onLog('<span class="win">Герой в защите.</span>');
-                Battle.bossTurn(window.battleUI);
+
+            // БЛОК ЩИТОМ — базовый удар, ответ босса минус 2×(lvl-1)
+            case 'shieldblock': {
+                if (!Battle.isSkillReady('shieldblock')) return;
+                Battle.startCooldown('shieldblock');
+                Battle.battleState.bossDamageReduction = 2 * (lvl.def - 1);
+                Battle.doAttack(1, 'БЛОК ЩИТОМ', window.battleUI);
                 break;
             }
+
+            // НЕВИДИМЫЙ УДАР — плоская прибавка 8×(lvl-1), босс НЕ отвечает
+            case 'stealth': {
+                if (!Battle.isSkillReady('stealth')) return;
+                Battle.startCooldown('stealth');
+                Battle.battleState.silentStrike = true;
+                const bonus = 8 * (lvl.crit - 1);
+                Battle.doAttackFlat(bonus, 'НЕВИДИМЫЙ УДАР', window.battleUI);
+                break;
+            }
+
+            // ЗЕЛЬЕ — из левой панели, хил 250 + 5×(lvl-1), босс отвечает
             case 'potion': {
-                if (Battle.battleState.potions <= 0) {
+                if (!Battle.isSkillReady('potion')) return;
+                const bs = Battle.battleState;
+                if (bs.potions <= 0) {
                     window.battleUI.onLog('<span class="lose">Зелья закончились!</span>');
                     return;
                 }
                 Battle.startCooldown('potion');
-                const heal = state.hero.maxHp * 0.3;
+                const heal = 250 + 5 * (lvl.heal - 1);
                 state.hero.hp = Math.min(state.hero.maxHp, state.hero.hp + heal);
-                Battle.battleState.potions--;
+                bs.potions--;
                 UI.updateBattleHP();
-                window.battleUI.onLog(`<span class="win">Зелье: +${heal.toFixed(0)} HP</span>`);
+                window.battleUI.onLog(`<span class="win">Зелье: +${heal} HP</span>`);
                 playSound('heal');
                 Battle.bossTurn(window.battleUI);
                 break;
             }
-            case 'ok': {
-                if (!Battle.isSkillReady('attack')) return;
-                Battle.startCooldown('attack');
-                Battle.doAttack(1, 'АТАКА', window.battleUI);
-                break;
-            }
         }
-
-        // Обновляем визуал кулдаунов после любого действия
         UI.updateSkillCooldowns();
     };
 

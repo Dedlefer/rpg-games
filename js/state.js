@@ -45,40 +45,21 @@ export function loadGame() {
 // Расчет статов (без window.itemsData — импортируем напрямую)
 export function calcStats() {
     const h = state.hero;
-    const bonusHp = (h.talents.hp - 1) * 20;
-    const bonusDmg = (h.talents.dmg - 1) * 6;
-    const bonusDef = (h.talents.def - 1) * 2;
-    const bonusCritDmg = (h.talents.crit - 1) * 8;
-
     const levelMult = 1 + (h.level - 1) * 0.05;
 
-    const base = {
-        maxHp: (200 * levelMult) + bonusHp,
-        damage: (100 * levelMult) + bonusDmg + bonusCritDmg,
-        critChance: 5,
-        critDamage: 150,
-        evade: 5,
-        armor: bonusDef
-    };
+    // База: 200 HP, 100 урона (растёт от уровня)
+    let maxHp = 200 * levelMult;
+    let damage = 100 * levelMult;
 
-    const bonus = { hp: 0, damage: 0, evade: 0, critChance: 0 };
+    // Бонусы от экипировки
     h.equipment.forEach(id => {
         const it = items.find(i => i.id === id);
         if (!it) return;
-        if (it.damageBonus) bonus.damage += it.damageBonus;
-        if (it.hpBonus) bonus.hp += it.hpBonus;
-        if (it.evadeBonus) bonus.evade += it.evadeBonus;
-        if (it.critChanceBonus) bonus.critChance += it.critChanceBonus;
+        if (it.hpBonus)     maxHp  += it.hpBonus;
+        if (it.damageBonus) damage += it.damageBonus;
     });
 
-    return {
-        maxHp: base.maxHp + bonus.hp,
-        damage: base.damage + bonus.damage,
-        critChance: Math.min(base.critChance + bonus.critChance, 100),
-        critDamage: base.critDamage,
-        evade: Math.min(base.evade + bonus.evade, 100),
-        armor: base.armor
-    };
+    return { maxHp, damage };
 }
 
 // Синхронизирует state.hero с calcStats (HP, maxHp, damage, crit, evade, armor)
@@ -86,10 +67,6 @@ export function syncHeroStats() {
     const s = calcStats();
     state.hero.maxHp = s.maxHp;
     state.hero.damage = s.damage;
-    state.hero.critChance = s.critChance;
-    state.hero.critDamage = s.critDamage;
-    state.hero.evade = s.evade;
-    state.hero.armor = s.armor;
     if (state.hero.hp > s.maxHp) state.hero.hp = s.maxHp;
     return s;
 }
