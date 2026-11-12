@@ -2,6 +2,15 @@ import { state, calcStats, saveGame, syncHeroStats } from './state.js';
 import { items as itemData, consumables as consData, achievements as achData, bosses as bossData } from './data.js';
 import { itemBonusText, rarityColor, todayStr, playSound, SLOT_LABELS } from './utils.js';
 
+// --- НОВОЕ: Конфигурация для красивого рендера талантов ---
+const TALENT_INFO = {
+    hp:   { name: 'ВЫНОСЛИВОСТЬ',    icon: 'images/skill_hp.png' },
+    dmg:  { name: 'СВИРЕПЫЙ УДАР',   icon: 'images/skill_dmg.png' },
+    def:  { name: 'БЛОК ЩИТОМ',      icon: 'images/skill_def.png' },
+    crit: { name: 'НЕВИДИМЫЙ УДАР',  icon: 'images/skill_crit.png' },
+    heal: { name: 'МАСТЕР ЦЕЛИТЕЛЬ', icon: 'images/skill_heal.png' }
+};
+
 export function updateHUD() {
     const h = state.hero;
     const s = syncHeroStats();
@@ -66,27 +75,63 @@ export function switchProfileTab(tabId) {
     document.getElementById(`tab-${tabId}`).classList.add('active');
 
     if (tabId === 'achievements') renderAchievements();
+    if (tabId === 'talents') updateProfileUI(); // Подстраховка: обновляем цены при переключении
 }
 
 function getTalentPrice(id, lvl) {
-    if (id === 'heal') return { gold: Math.floor(5 * Math.pow(1.5, lvl - 1)), silver: 0 };
-    const basePrice = { hp: 10, dmg: 15, def: 20, crit: 20 };
-    return { silver: Math.floor(basePrice[id] * Math.pow(1.4, lvl - 1)), gold: 0 };
+    const CONFIG = {
+        dmg:  { base: 201, step: 2.1,   currency: 'silver' },
+        def:  { base: 21,  step: 3.8,   currency: 'silver' },
+        crit: { base: 281, step: 12.55, currency: 'silver' },
+        heal: { base: 151, step: 7.93,  currency: 'gold'   },
+        hp:   { base: 18,  step: 3.32,  currency: 'gold'   }
+    };
+
+    const cfg = CONFIG[id];
+    if (!cfg) return { silver: 0, gold: 0 };
+
+    const cost = Math.floor(cfg.base + (lvl - 1) * cfg.step);
+
+    return cfg.currency === 'gold' 
+        ? { silver: 0, gold: cost } 
+        : { silver: cost, gold: 0 };
 }
 
+// --- ОБНОВЛЕНО: Динамическая отрисовка всех талантов ---
 export function updateProfileUI() {
     const h = state.hero;
-    document.getElementById('lvl-hp').textContent = h.talents.hp;
-    document.getElementById('lvl-dmg').textContent = h.talents.dmg;
-    document.getElementById('lvl-def').textContent = h.talents.def;
-    document.getElementById('lvl-crit').textContent = h.talents.crit;
-    document.getElementById('lvl-heal').textContent = h.talents.heal;
+    const container = document.getElementById('talents-container');
+    if (!container) return;
 
-    document.getElementById('price-hp').innerHTML = `💰 ${getTalentPrice('hp', h.talents.hp).silver}`;
-    document.getElementById('price-dmg').innerHTML = `💰 ${getTalentPrice('dmg', h.talents.dmg).silver}`;
-    document.getElementById('price-def').innerHTML = `💰 ${getTalentPrice('def', h.talents.def).silver}`;
-    document.getElementById('price-crit').innerHTML = `💰 ${getTalentPrice('crit', h.talents.crit).silver}`;
-    document.getElementById('price-heal').innerHTML = `🪙 ${getTalentPrice('heal', h.talents.heal).gold}`;
+    container.innerHTML = ''; 
+
+    // Проходимся по всем способностям
+    Object.keys(TALENT_INFO).forEach(id => {
+        const info = TALENT_INFO[id];
+        const lvl = h.talents[id];
+        const price = getTalentPrice(id, lvl);
+        
+        const isGold = price.gold > 0;
+        const coinImg = isGold ? 'images/coin_gold.png' : 'images/coin_silver.png';
+        const priceValue = isGold ? price.gold : price.silver;
+
+        const card = document.createElement('div');
+        card.className = 'talent-card';
+        card.innerHTML = `
+            <div class="talent-img-box" style="background-image:url('${info.icon}')">
+                <span class="talent-lvl" id="lvl-${id}">${lvl}</span>
+            </div>
+            <div class="talent-name">${info.name}</div>
+            <div class="talent-info">
+                <div class="talent-price" style="display:flex; align-items:center; justify-content:center; gap:5px;">
+                    <img src="${coinImg}" style="width:16px; height:16px;" onerror="this.style.display='none'">
+                    ${priceValue}
+                </div>
+                <button class="btn-upgrade" onclick="window.upgradeTalent('${id}')">ПОДНЯТЬ УРОВЕНЬ</button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
 
     document.getElementById('talent-silver').textContent = h.silver;
     document.getElementById('talent-gold').textContent = h.gold;
@@ -284,9 +329,7 @@ export function renderBattleUI(boss, isTower = false) {
     heroImg.src = 'images/hero_full.png';
 
     document.getElementById('battle-log').innerHTML = '';
-    const potionCountEl = document.getElementById('skill-potion-count');
-    if (potionCountEl) potionCountEl.textContent = '3';
-
+    
     document.getElementById('bt-timer').textContent = '00:00:00';
 
     // Сброс визуала кулдаунов
@@ -321,6 +364,7 @@ export function updateBattleHP() {
         document.getElementById('bt-boss-max-hp').textContent = bossMax;
         document.getElementById('bt-boss-hp-fill').style.width =
             Math.max(0, Math.min(100, (bossHp / bossMax) * 100)) + '%';
+        
         const potionCountEl = document.getElementById('skill-potion-count');
         if (potionCountEl) potionCountEl.textContent = bs.potions;
     }
@@ -328,8 +372,6 @@ export function updateBattleHP() {
 
 /**
  * Обновляет состояние кнопок скиллов и полосок кулдауна.
- * Блокирует кнопку (disabled) и подсвечивает .on-cooldown,
- * пока Battle.isSkillReady(action) === false.
  */
 export function updateSkillCooldowns() {
     document.querySelectorAll('.skill-btn').forEach(btn => {

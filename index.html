@@ -126,69 +126,22 @@
         </div>
 
         <div class="profile-body">
+            <!-- Вкладка талантов -->
             <div id="tab-talents" class="profile-tab-content active">
-                <h3 class="tab-header">ВЫНОСЛИВОСТЬ</h3>
-                <div class="talent-row center-talent">
-                    <div class="talent-card">
-                        <div class="talent-img-box" style="background-image:url('images/skill_hp.png')">
-                            <span class="talent-lvl" id="lvl-hp">1</span>
-                        </div>
-                        <div class="talent-info">
-                            <div class="talent-price" id="price-hp">💰 10</div>
-                            <button class="btn-upgrade" onclick="upgradeTalent('hp')">ПОДНЯТЬ УРОВЕНЬ</button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="talents-grid">
-                    <div class="talent-card">
-                        <div class="talent-img-box" style="background-image:url('images/skill_dmg.png')">
-                            <span class="talent-lvl" id="lvl-dmg">1</span>
-                        </div>
-                        <div class="talent-name">СВИРЕПЫЙ УДАР</div>
-                        <div class="talent-info">
-                            <div class="talent-price" id="price-dmg">💰 15</div>
-                            <button class="btn-upgrade" onclick="upgradeTalent('dmg')">ПОДНЯТЬ УРОВЕНЬ</button>
-                        </div>
-                    </div>
-
-                    <div class="talent-card">
-                        <div class="talent-img-box" style="background-image:url('images/skill_def.png')">
-                            <span class="talent-lvl" id="lvl-def">1</span>
-                        </div>
-                        <div class="talent-name">БЛОК ЩИТОМ</div>
-                        <div class="talent-info">
-                            <div class="talent-price" id="price-def">💰 20</div>
-                            <button class="btn-upgrade" onclick="upgradeTalent('def')">ПОДНЯТЬ УРОВЕНЬ</button>
-                        </div>
-                    </div>
-
-                    <div class="talent-card">
-                        <div class="talent-img-box" style="background-image:url('images/skill_crit.png')">
-                            <span class="talent-lvl" id="lvl-crit">1</span>
-                        </div>
-                        <div class="talent-name">НЕВИДИМЫЙ УДАР</div>
-                        <div class="talent-info">
-                            <div class="talent-price" id="price-crit">💰 20</div>
-                            <button class="btn-upgrade" onclick="upgradeTalent('crit')">ПОДНЯТЬ УРОВЕНЬ</button>
-                        </div>
-                    </div>
-
-                    <div class="talent-card">
-                        <div class="talent-img-box" style="background-image:url('images/skill_heal.png')">
-                            <span class="talent-lvl" id="lvl-heal">1</span>
-                        </div>
-                        <div class="talent-name">МАСТЕР ЦЕЛИТЕЛЬ</div>
-                        <div class="talent-info">
-                            <div class="talent-price" id="price-heal">🪙 5</div>
-                            <button class="btn-upgrade" onclick="upgradeTalent('heal')">ПОДНЯТЬ УРОВЕНЬ</button>
-                        </div>
-                    </div>
-                </div>
+                <h3 class="tab-header">СПОСОБНОСТИ</h3>
+                
+                <!-- Сюда JS будет автоматически вставлять все 5 карточек -->
+                <div class="talents-grid" id="talents-container" style="grid-template-columns: repeat(3, 1fr);"></div>
 
                 <div class="talent-footer">
-                    <div class="talent-currency">💰 <span id="talent-silver">0</span></div>
-                    <div class="talent-currency">🪙 <span id="talent-gold">0</span></div>
+                    <div class="talent-currency">
+                        <img src="images/coin_silver.png" style="width:20px; height:20px; vertical-align:middle; margin-right:5px;" onerror="this.style.display='none'"> 
+                        <span id="talent-silver">0</span>
+                    </div>
+                    <div class="talent-currency">
+                        <img src="images/coin_gold.png" style="width:20px; height:20px; vertical-align:middle; margin-right:5px;" onerror="this.style.display='none'"> 
+                        <span id="talent-gold">0</span>
+                    </div>
                 </div>
             </div>
 
@@ -367,7 +320,7 @@
     </div>
 
     <!-- Лог боя -->
-    <div class="log" id="battle-log"></div>🗡️
+    <div class="log" id="battle-log"></div>
 </div>
 
 <!-- ================= МОДАЛКА ПОБЕДЫ ================= -->

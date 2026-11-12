@@ -224,8 +224,14 @@ export function bossTurn(uiCallback) {
     if (battleState.bossEnraged) bossDmg *= 1.5;
 
     // Плоское снижение от «Блока щитом»
-    bossDmg = Math.max(1, bossDmg - battleState.bossDamageReduction);
-    battleState.bossDamageReduction = 0;
+    bossDmg = bossDmg - battleState.bossDamageReduction;
+    
+    // Если блок поглотил весь урон (или урон ушел в минус) — босс бьет на 0
+    if (bossDmg < 0) {
+        bossDmg = 0;
+    }
+    
+    battleState.bossDamageReduction = 0; // сбрасываем блок
 
     state.hero.hp = Math.max(0, state.hero.hp - bossDmg);
     uiCallback.onBossHit(bossDmg);
