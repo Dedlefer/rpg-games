@@ -19,7 +19,7 @@ export const battleState = {
     timerInterval: null,
 
     // Кулдауны скиллов — timestamp окончания (мс). Чистый объект.
-    cooldowns: {},
+    cooldowns: { attack: 0, frenzy: 0, shieldblock: 0, stealth: 0, potion: 0 },
 
     // Базовые кулдауны (сек). attack = 0 → без КД.
     baseCooldowns: {
@@ -65,7 +65,7 @@ export function beginBattle(boss, isTower = false) {
 
     // Сброс таймера и кулдаунов
     battleState.startTime = Date.now();
-    battleState.cooldowns = {};
+    battleState.cooldowns = { attack: 0, frenzy: 0, shieldblock: 0, stealth: 0, potion: 0 };
     clearBattleTimers();
     startBattleTimer();
 }

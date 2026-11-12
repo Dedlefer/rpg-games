@@ -26,7 +26,7 @@ export function openBossModal(index) {
     const locked = state.hero.level < boss.levelRequired;
     const defeated = state.defeatedBosses.includes(boss.id);
     const heroS = calcStats();
-    const power = Math.round(heroS.damage * (1 + heroS.critChance / 100 * 1.5) * (1 + heroS.evade / 200));
+    const power = Math.round(heroS.damage);
     document.getElementById('bm-stats').innerHTML = `
         <div class="bm-stat"><span>❤️ HP</span><b>${boss.hp}</b></div>
         <div class="bm-stat"><span>⚔️ УРОН</span><b>${boss.damage}</b></div>

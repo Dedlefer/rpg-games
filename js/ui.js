@@ -336,6 +336,15 @@ export function updateSkillCooldowns() {
         const action = btn.dataset.action || btn.dataset.skill;
         if (!action) return;
 
+        // Кнопка Атаки должна быть ВСЕГДА доступна (у неё 0 КД)
+        if (action === 'attack') {
+            btn.disabled = false;
+            btn.classList.remove('on-cooldown');
+            const bar = btn.querySelector('.skill-cd');
+            if (bar) bar.style.width = '0%';
+            return;
+        }
+
         const ready = window.Battle
             ? window.Battle.isSkillReady(action)
             : true;
